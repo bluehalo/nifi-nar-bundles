@@ -371,8 +371,8 @@
     </organization>
 
     <scm>
-        <connection>scm:git:git@github.com:Asymmetrik/nifi-nars.git</connection>
-        <developerConnection>scm:git:git@github.com:Asymmetrik/nifi-nars.git</developerConnection>
+        <connection>scm:git:git@github.com:Asymmetrik/nifi-nar-bundles.git</connection>
+        <developerConnection>scm:git:git@github.com:Asymmetrik/nifi-nar-bundles.git</developerConnection>
         <tag>HEAD</tag>
         <url>https://github.com/Asymmetrik</url>
     </scm>
