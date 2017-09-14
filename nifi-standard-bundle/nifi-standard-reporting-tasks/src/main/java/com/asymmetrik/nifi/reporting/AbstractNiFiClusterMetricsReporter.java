@@ -1,0 +1,360 @@
+package com.asymmetrik.nifi.reporting;
+
+import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import com.asymmetrik.nifi.models.ConnectionStatusMetric;
+import com.asymmetrik.nifi.models.influxdb.MetricFields;
+import com.asymmetrik.nifi.models.PortStatusMetric;
+import com.asymmetrik.nifi.models.ProcessGroupStatusMetric;
+import com.asymmetrik.nifi.models.ProcessorStatusMetric;
+import com.asymmetrik.nifi.models.RemoteProcessGroupStatusMetric;
+import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
+import com.yammer.metrics.core.VirtualMachineMetrics;
+
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.nifi.annotation.lifecycle.OnScheduled;
+import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.controller.ConfigurationContext;
+import org.apache.nifi.controller.status.ConnectionStatus;
+import org.apache.nifi.controller.status.PortStatus;
+import org.apache.nifi.controller.status.ProcessGroupStatus;
+import org.apache.nifi.controller.status.ProcessorStatus;
+import org.apache.nifi.controller.status.RemoteProcessGroupStatus;
+import org.apache.nifi.processor.util.StandardValidators;
+import org.apache.nifi.reporting.AbstractReportingTask;
+import org.apache.nifi.reporting.EventAccess;
+import org.apache.nifi.reporting.ReportingContext;
+import org.apache.nifi.util.NiFiProperties;
+
+@SuppressWarnings("Duplicates")
+abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask {
+    static final PropertyDescriptor VOLUMES = new PropertyDescriptor.Builder()
+            .name("Disk Usage")
+            .description("CSV list of directories for which % disk space used will be generated.")
+            .required(false)
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+    static final PropertyDescriptor PROCESS_GROUPS = new PropertyDescriptor.Builder()
+            .name("Process Groups")
+            .displayName("Process Groups")
+            .description("CSV list of process group names for which the aggregated statistics will be generated.")
+            .required(false)
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+    static final PropertyDescriptor REMOTE_PROCESS_GROUPS = new PropertyDescriptor.Builder()
+            .name("process_group_uuids")
+            .displayName("Remote Process Groups")
+            .description("CSV list of remote process group UUIDs for which the aggregated statistics will be generated.")
+            .required(false)
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+    static final PropertyDescriptor PROCESSORS = new PropertyDescriptor.Builder()
+            .name("Processors")
+            .displayName("Processors")
+            .description("CSV list of processor names for which the aggregated statistics will be generated.")
+            .required(false)
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+    static final PropertyDescriptor CONNECTIONS = new PropertyDescriptor.Builder()
+            .name("connections_uuids")
+            .displayName("Connections")
+            .description("CSV list of connection UUIDs for which the aggregated statistics will be generated.")
+            .required(false)
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+    static final PropertyDescriptor INPUT_PORTS = new PropertyDescriptor.Builder()
+            .name("Input Ports")
+            .displayName("Input Ports")
+            .description("CSV list of input port UUIDs for which the aggregated statistics will be generated.")
+            .required(false)
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+    static final PropertyDescriptor OUTPUT_PORTS = new PropertyDescriptor.Builder()
+            .name("Output Ports")
+            .displayName("Output Ports")
+            .description("CSV list of output port UUIDs for which the aggregated statistics will be generated.")
+            .required(false)
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
+    private List<String> volumes;
+    private List<String> processGroups;
+    private List<String> remoteProcessGroups;
+    private List<String> processors;
+    private List<String> connections;
+    private List<String> inputPorts;
+    private List<String> outputPorts;
+
+    abstract void publish(ReportingContext reportingContext, SystemMetricsSnapshot systemMetricsSnapshot);
+
+    @OnScheduled
+    public void onScheduled(final ConfigurationContext context) {
+        volumes = populateInputsFromCsv(context, VOLUMES);
+        processGroups = populateInputsFromCsv(context, PROCESS_GROUPS);
+        remoteProcessGroups = populateInputsFromCsv(context, REMOTE_PROCESS_GROUPS);
+        processors = populateInputsFromCsv(context, PROCESSORS);
+        connections = populateInputsFromCsv(context, CONNECTIONS);
+        inputPorts = populateInputsFromCsv(context, INPUT_PORTS);
+        outputPorts = populateInputsFromCsv(context, OUTPUT_PORTS);
+    }
+
+    @Override
+    public void onTrigger(final ReportingContext context) {
+        NiFiProperties nifiProperties = NiFiProperties.createBasicNiFiProperties(null, null);
+
+        try {
+            EventAccess eventAccess = context.getEventAccess();
+
+            SystemMetricsSnapshot systemMetricsSnapshot = new SystemMetricsSnapshot()
+                    .setClusterNodeIdentifier(context.getClusterNodeIdentifier())
+                    .setIpAddress(getIpAddress())
+                    .setRootProcessGroupSnapshot(new ProcessGroupStatusMetric(eventAccess.getControllerStatus()))
+                    .setMachineMemory(computeMachineMemory())
+                    .setJvmMetrics(populateJVMMetrics());
+
+            // Add Content Repositories usages to response
+            Map<File, Map<String, Object>> diskMetrics = systemMetricsSnapshot.getDiskMetrics();
+            for (final Map.Entry<String, Path> entry : nifiProperties.getContentRepositoryPaths().entrySet()) {
+                Path path = entry.getValue();
+                diskMetrics.put(path.toFile(), computeRepositoryMetrics(path));
+            }
+
+            // Add Flowfile Repository usage to response
+            Path flowFileRepository = nifiProperties.getFlowFileRepositoryPath();
+            diskMetrics.put(flowFileRepository.toFile(), computeRepositoryMetrics(flowFileRepository));
+
+            // Added additional disk usages to response
+            for (String v : volumes) {
+                diskMetrics.put(new File(v), computeRepositoryMetrics(new File(v)));
+            }
+
+            // Add optional process group snapshots
+            if (CollectionUtils.isNotEmpty(processGroups)) {
+                populateAdditionalProcessGroupSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
+            }
+
+            // Add optional remote process group snapshots
+            if (CollectionUtils.isNotEmpty(remoteProcessGroups)) {
+                populateRemoteProcessGroupSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
+            }
+
+            // Add optional processor metrics
+            if (CollectionUtils.isNotEmpty(processors)) {
+                populateProcessorSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
+            }
+
+            // Add optional connection metrics
+            if (CollectionUtils.isNotEmpty(connections)) {
+                populateConnectionSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
+            }
+
+            // Add optional input port metrics
+            if (CollectionUtils.isNotEmpty(inputPorts)) {
+                populateInputPortSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
+            }
+
+            // Add optional output port metrics
+            if (CollectionUtils.isNotEmpty(outputPorts)) {
+                populateOutputPortSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
+            }
+
+            publish(context, systemMetricsSnapshot);
+
+        } catch (Exception e) {
+            getLogger().warn("Unable to send metrics due to {}", new Object[]{e.getMessage()}, e);
+        }
+    }
+
+    private void populateAdditionalProcessGroupSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
+        if (processGroups.contains(status.getName()) || processGroups.contains(status.getId())) {
+            systemMetricsSnapshot.getProcessGroupSnapshots().add(new ProcessGroupStatusMetric(status));
+        }
+        for (ProcessGroupStatus processGroupStatus : new ArrayList<>(status.getProcessGroupStatus())) {
+            populateAdditionalProcessGroupSnapshots(processGroupStatus, systemMetricsSnapshot);
+        }
+    }
+
+    private void populateProcessorSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
+        for (ProcessorStatus processorStatus : status.getProcessorStatus()) {
+            if (processors.contains(processorStatus.getName()) || processors.contains(processorStatus.getId())) {
+                systemMetricsSnapshot.getProcessorSnapshots().add(new ProcessorStatusMetric(processorStatus));
+            }
+        }
+
+        for (ProcessGroupStatus processorStatus : new ArrayList<>(status.getProcessGroupStatus())) {
+            populateProcessorSnapshots(processorStatus, systemMetricsSnapshot);
+        }
+    }
+
+    private void populateRemoteProcessGroupSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
+        for (RemoteProcessGroupStatus remoteProcessGroupStatus : status.getRemoteProcessGroupStatus()) {
+            if (remoteProcessGroups.contains(remoteProcessGroupStatus.getId())) {
+                systemMetricsSnapshot.getRemoteProcessGroupSnapshots().add(new RemoteProcessGroupStatusMetric(remoteProcessGroupStatus));
+            }
+        }
+
+        for (ProcessGroupStatus processorStatus : new ArrayList<>(status.getProcessGroupStatus())) {
+            populateRemoteProcessGroupSnapshots(processorStatus, systemMetricsSnapshot);
+        }
+    }
+
+    private void populateConnectionSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
+        for (ConnectionStatus connectionStatus : status.getConnectionStatus()) {
+            if (connections.contains(connectionStatus.getId())) {
+                systemMetricsSnapshot.getConnectionSnapshots().add(new ConnectionStatusMetric(connectionStatus));
+            }
+        }
+
+        for (ProcessGroupStatus processorStatus : new ArrayList<>(status.getProcessGroupStatus())) {
+            populateConnectionSnapshots(processorStatus, systemMetricsSnapshot);
+        }
+    }
+
+    private void populateInputPortSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
+        for (PortStatus portStatus : status.getInputPortStatus()) {
+            if (inputPorts.contains(portStatus.getId())) {
+                systemMetricsSnapshot.getInputPortSnapshots().add(new PortStatusMetric(portStatus));
+            }
+        }
+
+        for (ProcessGroupStatus processorStatus : new ArrayList<>(status.getProcessGroupStatus())) {
+            populateInputPortSnapshots(processorStatus, systemMetricsSnapshot);
+        }
+    }
+
+    private void populateOutputPortSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
+        for (PortStatus portStatus : status.getOutputPortStatus()) {
+            if (outputPorts.contains(portStatus.getId())) {
+                systemMetricsSnapshot.getOutputPortSnapshots().add(new PortStatusMetric(portStatus));
+            }
+        }
+
+        for (ProcessGroupStatus processorStatus : new ArrayList<>(status.getProcessGroupStatus())) {
+            populateOutputPortSnapshots(processorStatus, systemMetricsSnapshot);
+        }
+    }
+
+    private Map<String, Object> computeMachineMemory() {
+        Map<String, Object> memory = new HashMap<>();
+        Runtime runtime = Runtime.getRuntime();
+
+        Double free = (double) runtime.freeMemory();
+        Double total = (double) runtime.totalMemory();
+
+        memory.put(MetricFields.FREE, free);
+        memory.put(MetricFields.TOTAL, total);
+        memory.put(MetricFields.USED_PERCENT, 100.0 * (1.0 - (free / total)));
+        return memory;
+    }
+
+    private Map<String, Object> computeRepositoryMetrics(File file) {
+        Map<String, Object> disk = new HashMap<>();
+
+        Double totalBytes = (double) file.getTotalSpace();
+        Double freeBytes = (double) file.getFreeSpace();
+
+        disk.put(MetricFields.FREE, freeBytes);
+        disk.put(MetricFields.TOTAL, totalBytes);
+        disk.put(MetricFields.USED_PERCENT, 100.0 * (1.0 - freeBytes / totalBytes));
+        return disk;
+    }
+
+    private Map<String, Object> computeRepositoryMetrics(final Path path) {
+        return computeRepositoryMetrics(path.toFile());
+    }
+
+    private List<String> populateInputsFromCsv(ConfigurationContext context, PropertyDescriptor propertyDescriptor) {
+        List<String> list = new ArrayList<>();
+        if (context.getProperty(propertyDescriptor).isSet()) {
+            String csv = context.getProperty(propertyDescriptor).evaluateAttributeExpressions().getValue();
+            if (StringUtils.isNotEmpty(csv)) {
+                for (String s : csv.split(",")) {
+                    list.add(s.trim());
+                }
+            }
+        }
+        return list;
+    }
+
+    //virtual machine metrics
+    private Map<String, Object> populateJVMMetrics() {
+        VirtualMachineMetrics virtualMachineMetrics = VirtualMachineMetrics.getInstance();
+        final Map<String, Object> metrics = new HashMap<>();
+        metrics.put(MetricFields.JVM_UPTIME, (double) virtualMachineMetrics.uptime());
+        metrics.put(MetricFields.JVM_HEAP_USED, virtualMachineMetrics.heapUsed());
+        metrics.put(MetricFields.JVM_HEAP_USAGE, virtualMachineMetrics.heapUsage());
+        metrics.put(MetricFields.JVM_NON_HEAP_USAGE, virtualMachineMetrics.nonHeapUsage());
+        metrics.put(MetricFields.JVM_THREAD_COUNT, (double) virtualMachineMetrics.threadCount());
+        metrics.put(MetricFields.JVM_DAEMON_THREAD_COUNT, (double) virtualMachineMetrics.daemonThreadCount());
+        metrics.put(MetricFields.JVM_FILE_DESCRIPTOR_USAGE, virtualMachineMetrics.fileDescriptorUsage());
+
+        for (Map.Entry<Thread.State, Double> entry : virtualMachineMetrics.threadStatePercentages().entrySet()) {
+            final int normalizedValue = (int) (100 * (entry.getValue() == null ? 0 : entry.getValue()));
+            switch (entry.getKey()) {
+                case BLOCKED:
+                    metrics.put(MetricFields.JVM_THREAD_STATES_BLOCKED, (double) normalizedValue);
+                    break;
+                case RUNNABLE:
+                    metrics.put(MetricFields.JVM_THREAD_STATES_RUNNABLE, (double) normalizedValue);
+                    break;
+                case TERMINATED:
+                    metrics.put(MetricFields.JVM_THREAD_STATES_TERMINATED, (double) normalizedValue);
+                    break;
+                case TIMED_WAITING:
+                    metrics.put(MetricFields.JVM_THREAD_STATES_TIMED_WAITING, (double) normalizedValue);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        for (Map.Entry<String, VirtualMachineMetrics.GarbageCollectorStats> entry : virtualMachineMetrics.garbageCollectors().entrySet()) {
+            final String gcName = entry.getKey().replace(" ", "");
+            final long runs = entry.getValue().getRuns();
+            final long timeMS = entry.getValue().getTime(TimeUnit.MILLISECONDS);
+            metrics.put(MetricFields.JVM_GC_RUNS + "." + gcName, (double) runs);
+            metrics.put(MetricFields.JVM_GC_TIME + "." + gcName, (double) timeMS);
+        }
+
+        return metrics;
+    }
+
+    /**
+     * Converts IP address specified as byte[] to dot notation String equivalent
+     *
+     * @return String representation of ipAddress
+     */
+    public static String getIpAddress() {
+        try {
+            byte[] address = InetAddress.getLocalHost().getAddress();
+            if (address == null) {
+                return "";
+            }
+
+            StringBuilder builder = new StringBuilder("");
+            for (byte b : address) {
+                builder.append(String.valueOf(b & 0xFF)).append('.');
+            }
+
+            return builder.deleteCharAt(builder.length() - 1).toString();
+        } catch (UnknownHostException uhe) {
+            return "";
+        }
+    }
+}

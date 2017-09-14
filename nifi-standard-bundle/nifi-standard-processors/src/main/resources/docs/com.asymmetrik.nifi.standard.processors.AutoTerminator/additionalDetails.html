@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>AutoTerminator</title>
+    <link rel="stylesheet" href="../../css/component-usage.css" type="text/css"/>
+</head>
+
+<body>
+<h2 style="padding-bottom:0;margin-bottom: 0;">Description:</h2>
+<div>
+    This processor consumes every flowfile that it receives. It is intended to be used for during debugging. In production flows, where data loss is
+    unacceptable, this processor should <b>not</b> be used.
+</div>
+<h2 style="padding-bottom:0;margin-bottom: 0;">Relationships:</h2>
+<div>
+    <b>nowhere</b><br/>
+    this relationship never receives any data. It exists solely because NiFi does not behave properly when flows contain processors with no relationships.
+    At the time of this writing, template backup and restore did not work properly for processor without at least one relationship.</ul>
+
+</div>
+</body>
+</html>
+

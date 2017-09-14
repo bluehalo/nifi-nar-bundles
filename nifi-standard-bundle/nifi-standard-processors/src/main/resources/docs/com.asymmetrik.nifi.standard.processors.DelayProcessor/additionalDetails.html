@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>AutoTerminator</title>
+
+    <link rel="stylesheet" href="../../css/component-usage.css" type="text/css"/>
+</head>
+
+<body>
+<h2 style="padding-bottom:0;margin-bottom: 0;">Description:</h2>
+<div>
+    Imposes a configurable delay on each flowfile prior to sending it to the success relationship.
+</div>
+
+<h2 style="padding-bottom:0;margin-bottom: 0;">Basic Use Case:</h2>
+<div>
+    This processor is useful for catching failed, upstream processors so that each flowfile can be fed back to its
+    upstream processor for the purpose of retrying.  In essence, this processor enables a delayed retry capability.
+</div>
+
+<h2 style="padding-bottom:0;margin-bottom: 0;">Relationships:</h2>
+<div>
+    <b>success</b>
+    each flowfile will wait the configured delay and then be sent to this relationship. Order is not guaranteed.  That is,
+    flowfiles entering this processor within the same millisecond may exit the processor in a different order.
+</div>
+
+</body>
+</html>
+

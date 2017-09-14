@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>AutoTerminator</title>
+    <link rel="stylesheet" href="../../css/component-usage.css" type="text/css"/>
+</head>
+
+<body>
+<h2 style="padding-bottom:0;margin-bottom: 0;">Description:</h2>
+<div>
+    Track a Tumbling Window based on evaluating an Expression Language expression on each FlowFile and add that value to the processor's state.
+    Each FlowFile will be emitted with the count of FlowFiles and total aggregate value of values processed in the current time window. It should be
+    noted that the aggregated counts are reset after each Time Window elapses. This behaviour is slightly differently than the built-in NiFi processor
+    named AttributeRollingWindow.
+</div>
+<h2 style="padding-bottom:0;margin-bottom: 0;">Basic Usage:</h2>
+<div>
+    Aggregate an expression language value within a time window, reporting the sum and count at the end of the window. One common use-case is to use
+    this as a counter within a fixed time window. For example, compute and report the average latency. This would be implemented by
+    simply using 1-minute time window to sum the extracted flowfile attribute that represents latency and then sending the metrics to an external service,
+    like CloudWatch or DataDog.
+</div>
+<h2 style="padding-bottom:0;margin-bottom: 3px;">Relationships:</h2>
+<div style="margin-bottom: 10px">
+    <b>elapsed</b><br/>
+    this relationship receives one flowfile when the time window tumbles. For example, if the time window is set to 1 minute, this relationship
+    will receive a flowfile every minute. The contents of this flowfile will remoain unchanged, but the latest metrics attributes will be added to
+    AttributeTumblingWindow.sum and AttributeTumblingWindow.count.
+</div>
+<div style="margin-bottom: 10px">
+    <b>non-elapsed</b><br/>
+    this relationship receives every flowfile except the one when the time window tumbles. As such, if downstream processors require
+    all events, both non-elapsed and elapsed relationships should be used.
+</div>
+<div style="margin-bottom: 10px">
+    <b>failure</b><br/>
+    this relationship receives flowfile that could not be processed. The most common case is when the attribute being aggregated
+    is not parsable to a real number.
+</div>
+</body>
+</html>
+
