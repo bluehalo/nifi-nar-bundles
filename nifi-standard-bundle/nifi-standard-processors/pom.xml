@@ -37,7 +37,14 @@
         <dependency>
             <groupId>com.asymmetrik.nifi</groupId>
             <artifactId>nifi-cache-service-api</artifactId>
-            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-influxdb-service-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-mongo-service-api</artifactId>
         </dependency>
         <dependency>
             <groupId>com.jayway.jsonpath</groupId>
@@ -73,6 +80,10 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongo-java-driver</artifactId>
+        </dependency>
 
         <!-- TESTING -->
         <dependency>
@@ -83,6 +94,16 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-influxdb-service</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-mongo-service</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
