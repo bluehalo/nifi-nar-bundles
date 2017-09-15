@@ -3,6 +3,7 @@ package com.asymmetrik.nifi.processors.influxdb;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.asymmetrik.nifi.services.influxdb.InfluxDatabaseService;
@@ -36,7 +37,7 @@ public class PutInfluxDBTest {
 
     private static final String INFLUX_CONTROLLER_SERVICE = "influx_controller_service";
 
-    InfluxDatabaseService influxDbService;
+    private InfluxDatabaseService influxDbService;
     private PropertyDescriptor dynamicProp;
 
     @Before
@@ -128,10 +129,10 @@ public class PutInfluxDBTest {
     }
 
     @Test
-    public void testBatchFlowFiles() {
+    public void testCollectPoints() {
         String tagString = "foobar=helloworld,yes=no";
         String measurement = "testing123";
-        String database = "foo";
+        String database = "testdb";
 
         final MockProcessContext context = new MockProcessContext(new PutInfluxDB());
         context.setProperty(PutInfluxDB.TAGS, tagString);
@@ -144,10 +145,12 @@ public class PutInfluxDBTest {
         putInfluxDB.dynamicFieldValues = dynamicProps;
 
         MockFlowFile ff = new MockFlowFile(1);
-        BatchPoints result = putInfluxDB.batchFlowFiles(context, database, ImmutableList.of(ff));
+        Optional<BatchPoints> result = putInfluxDB.collectPoints(context, ImmutableList.of(ff), database);
+        assertTrue(result.isPresent());
 
-        assertEquals(database, result.getDatabase());
-        List<Point> points = result.getPoints();
+        BatchPoints batchPoints = result.get();
+        assertEquals(database, batchPoints.getDatabase());
+        List<Point> points = batchPoints.getPoints();
         assertEquals(1, points.size());
     }
 
@@ -210,6 +213,8 @@ public class PutInfluxDBTest {
     @Test
     public void testKeyValueValidatorParse() {
         Map<String, String> result = PutInfluxDB.KeyValueStringValidator.parse("foo=bar");
+        assert result != null;
+
         assertEquals(1, result.size());
         assertEquals("bar", result.get("foo"));
 

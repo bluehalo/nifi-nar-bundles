@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,7 +12,6 @@ import com.asymmetrik.nifi.services.influxdb.InfluxDatabaseService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
-import org.apache.commons.collections.MapUtils;
 import org.apache.nifi.annotation.behavior.DynamicProperty;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.SideEffectFree;
@@ -176,16 +176,32 @@ public class PutInfluxDB extends AbstractProcessor {
         }
 
         if (dynamicFieldValues.isEmpty()) {
+            getLogger().error("At least on field key/value pair must be defined using dynamic properties");
             session.transfer(flowFiles, REL_FAILURE);
             return;
         }
 
-        dispatch(flowFiles, session, batchFlowFiles(context, databaseName, flowFiles));
+        Optional<BatchPoints> batchPoints = collectPoints(context, flowFiles, databaseName);
+        if (!batchPoints.isPresent()) {
+            session.transfer(flowFiles, REL_FAILURE);
+            return;
+        }
+
+        try {
+            influxDb.write(batchPoints.get());
+            session.transfer(flowFiles, REL_SUCCESS);
+        } catch (Exception e) {
+            getLogger().error("Error while writing to InfluxDB: " + e.getMessage(), e);
+            session.transfer(flowFiles, REL_FAILURE);
+        }
     }
 
-    BatchPoints batchFlowFiles(ProcessContext context, String database, List<FlowFile> flowFiles) {
-        BatchPoints batch = BatchPoints.database(database).build();
-
+    /**
+     *
+     * @return
+     */
+    Optional<BatchPoints> collectPoints(ProcessContext context, List<FlowFile> flowFiles, String database) {
+        BatchPoints batchPoints = BatchPoints.database(database).build();
         for (FlowFile flowfile : flowFiles) {
             String tags = context.getProperty(TAGS).evaluateAttributeExpressions(flowfile).getValue();
             Map<String, String> tagsMap = KeyValueStringValidator.parse(tags);
@@ -199,42 +215,30 @@ public class PutInfluxDB extends AbstractProcessor {
                 continue;
             }
 
-            batch.point(Point
+            batchPoints.point(Point
                     .measurement(context.getProperty(MEASUREMENT).evaluateAttributeExpressions(flowfile).getValue())
                     .tag(tagsMap)
                     .fields(getFields(flowfile, dynamicFieldValues))
                     .build()
             );
         }
-
-        return batch;
+        return batchPoints.getPoints().isEmpty() ? Optional.empty() : Optional.of(batchPoints);
     }
 
-    private void dispatch(List<FlowFile> flowFiles, ProcessSession session, BatchPoints points) {
-        if (points.getPoints().isEmpty()) {
-            session.transfer(flowFiles, REL_FAILURE);
-            return;
-        }
-
-        try {
-            influxDb.write(points);
-            session.transfer(flowFiles, REL_SUCCESS);
-        } catch (Exception e) {
-            getLogger().error("Error while writing to InfluxDB: " + e.getMessage(), e);
-            session.transfer(flowFiles, REL_FAILURE);
-        }
-    }
-
+    /**
+     *
+     * @param flowfile
+     * @param fieldKeyValues
+     * @return
+     */
     Map<String, Object> getFields(FlowFile flowfile, Map<String, PropertyValue> fieldKeyValues) {
 
         // get field name and field values from dynamic attributes
         Map<String, Object> fields = new HashMap<>();
-        if (!MapUtils.isEmpty(fieldKeyValues)) {
-            for (Map.Entry<String, PropertyValue> entry : fieldKeyValues.entrySet()) {
-
-                try {
-                    fields.put(entry.getKey(), entry.getValue().evaluateAttributeExpressions(flowfile).asDouble());
-                } catch (NumberFormatException nfe) {}
+        for (Map.Entry<String, PropertyValue> entry : fieldKeyValues.entrySet()) {
+            try {
+                fields.put(entry.getKey(), entry.getValue().evaluateAttributeExpressions(flowfile).asDouble());
+            } catch (NumberFormatException nfe) {
             }
         }
         return fields;
