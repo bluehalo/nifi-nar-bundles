@@ -24,6 +24,13 @@ nifi-assembly/target/asymmetrik-nifi-nars-0.1.0-SNAPSHOT.tar.gz
 nifi-assembly/target/asymmetrik-nifi-nars-0.1.0-SNAPSHOT:
 asymmetrik-nifi-nars-0.1.0-SNAPSHOT
 ```
+## Tests Dependencies
+
+The test suite contains integration tests for both InfluxDB and MongoDB. As such, both must be installed on the test server in order to successfully build and test this project.  For InfluxDB installation go to [https://portal.influxdata.com/downloads](https://portal.influxdata.com/downloads).  On CentOS, MongoDB can be installed by 
+
+```
+sudo yum update mongodb-org 
+```
 
 ## Deploying
 
