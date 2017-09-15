@@ -18,7 +18,7 @@
 
     <groupId>com.asymmetrik.nifi</groupId>
     <artifactId>nifi-nar-bundles</artifactId>
-    <version>0.5.1</version>
+    <version>0.5.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -381,7 +381,7 @@
     <scm>
         <connection>scm:git:git@github.com:Asymmetrik/nifi-nar-bundles.git</connection>
         <developerConnection>scm:git:git@github.com:Asymmetrik/nifi-nar-bundles.git</developerConnection>
-        <tag>nifi-nar-bundles-0.5.1</tag>
+        <tag>HEAD</tag>
         <url>https://github.com/Asymmetrik</url>
     </scm>
 
