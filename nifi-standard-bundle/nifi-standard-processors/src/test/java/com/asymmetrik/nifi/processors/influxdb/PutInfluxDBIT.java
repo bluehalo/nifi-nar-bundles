@@ -33,7 +33,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-public class PutInfluxDBTest {
+public class PutInfluxDBIT {
 
     private static final String INFLUX_CONTROLLER_SERVICE = "influx_controller_service";
 
