@@ -14,7 +14,7 @@ import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 import org.junit.Test;
 
-public class QueryInfluxDBTest {
+public class QueryInfluxDBIT {
 
     @Test
     public void validQueryTests() throws InitializationException {
