@@ -33,13 +33,16 @@
     <dependencies>
         <dependency>
             <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-standard-services-api-nar</artifactId>
+            <type>nar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.asymmetrik.nifi</groupId>
             <artifactId>nifi-standard-processors</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.asymmetrik.nifi</groupId>
             <artifactId>nifi-standard-reporting-tasks</artifactId>
-            <version>${project.version}</version>
         </dependency>
     </dependencies>
 
