@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
 import com.asymmetrik.nifi.services.influxdb.InfluxDbService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.nifi.reporting.InitializationException;
 import org.apache.nifi.util.TestRunner;
@@ -15,6 +16,7 @@ import org.influxdb.dto.QueryResult;
 import org.junit.Test;
 
 public class QueryInfluxDBIT {
+    public static final ObjectMapper MAPPER = QueryInfluxDB.OBJ_MAPPER;
 
     @Test
     public void validQueryTests() throws InitializationException {
@@ -101,12 +103,12 @@ public class QueryInfluxDBIT {
     @Test
     public void testResponse() {
         InfluxDB influxDb = InfluxDBFactory.connect("http://127.0.0.1:8086");
-        Query query = new Query("select * from processor limit 1", "datastork");
+
+        // 1. clear testdb
+        // 2. add elements to testdb
+        // 3. query elements from testdb
+        Query query = new Query("select * from process_group limit 10", "datastork");
         QueryResult queryResult = influxDb.query(query, TimeUnit.MILLISECONDS);
-        QueryResult.Result firstResult = queryResult.getResults().get(0);
-        QueryResult.Series firstSeries = firstResult.getSeries().get(0);
-
-        System.out.println(firstSeries.getValues());
+        System.out.println(QueryInfluxDB.toJson(queryResult));
     }
-
 }

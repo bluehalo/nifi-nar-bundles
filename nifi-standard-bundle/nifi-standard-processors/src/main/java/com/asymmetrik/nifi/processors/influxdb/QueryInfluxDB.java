@@ -3,6 +3,8 @@ package com.asymmetrik.nifi.processors.influxdb;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -10,9 +12,12 @@ import java.util.regex.Pattern;
 import com.asymmetrik.nifi.services.influxdb.InfluxDatabaseService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.SideEffectFree;
@@ -34,17 +39,16 @@ import org.apache.nifi.processor.util.StandardValidators;
 import org.influxdb.InfluxDB;
 import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
-import org.influxdb.dto.QueryResult.Result;
-import org.influxdb.dto.QueryResult.Series;
 
 @InputRequirement(InputRequirement.Requirement.INPUT_FORBIDDEN)
 @SideEffectFree
 @DefaultSchedule(period = "10 sec")
 @Tags({"query", "get", "database", "influxdb", "influx", "db"})
 @CapabilityDescription("Queries InfluxDB, generating a flowFile for each result found. It should " +
-        "be noted that SELECT queries must include one of LIMIT, WHERE or GROUP BY clause.")
+        "be noted that SELECT queries must include one of LIMIT, WHERE or GROUP BY clause.  In fact, " +
+        "the query string property will fail if one of the aforementioned clauses is not specified.")
 public class QueryInfluxDB extends AbstractProcessor {
-    private static final ObjectMapper OBJ_MAPPER = new ObjectMapper();
+    static final ObjectMapper OBJ_MAPPER = new ObjectMapper();
 
     static final PropertyDescriptor INFLUX_DB_SERVICE = new PropertyDescriptor.Builder()
             .name("InfluxDb Service")
@@ -120,11 +124,6 @@ public class QueryInfluxDB extends AbstractProcessor {
     private Query query;
     private TimeUnit timeUnit;
 
-    @Override
-    protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(INFLUX_DB_SERVICE, DATABASE_NAME, QUERY_STRING, TIME_UNIT);
-    }
-
     @OnScheduled
     public void onScheduled(final ProcessContext context) throws IOException {
         InfluxDB db = context.getProperty(INFLUX_DB_SERVICE)
@@ -167,26 +166,96 @@ public class QueryInfluxDB extends AbstractProcessor {
         if (queryResult.hasError()) {
             String message = queryResult.getError();
             getLogger().error(message);
-            FlowFile flowFile = session.write(session.create(), outputStream -> outputStream.write(message.getBytes()));
+            FlowFile flowFile = session.write(session.create(), out -> out.write(message.getBytes()));
             session.transfer(flowFile, REL_FAILURE);
             return;
         }
 
-        serializeResults(session, queryResult.getResults());
+        FlowFile flowFile = session.write(session.create(), out -> out.write(toJson(queryResult).asText().getBytes()));
+        session.transfer(flowFile, REL_SUCCESS);
     }
 
-    void serializeResults(ProcessSession session, List<Result> results) {
-        List<FlowFile> flowFiles = new ArrayList<>();
-        for (Result result : results) {
-            FlowFile flowFile = session.write(session.create(), outputStream -> outputStream.write(result.toString().getBytes()));
-            flowFiles.add(flowFile);
+    static ObjectNode toJson(QueryResult queryResult) {
+        ArrayNode results = OBJ_MAPPER.createArrayNode();
+        for (QueryResult.Result result : queryResult.getResults()) {
+            results.add(buildSeries(result));
         }
-        session.transfer(flowFiles, REL_SUCCESS);
+        ObjectNode root = OBJ_MAPPER.createObjectNode();
+        root.replace("results", results);
+        return root;
+    }
+
+    static ArrayNode buildSeries(QueryResult.Result result) {
+        ArrayNode resultsJson = OBJ_MAPPER.createArrayNode();
+        for (QueryResult.Series series : result.getSeries()) {
+            ObjectNode seriesJson = OBJ_MAPPER.createObjectNode();
+            seriesJson.put("name", series.getName());
+
+            Optional<ObjectNode> tagsOptional = buildTags(series);
+            tagsOptional.ifPresent(tags -> seriesJson.replace("tags", tags));
+
+            Optional<ArrayNode> rowsOptional = buildRows(series);
+            rowsOptional.ifPresent(rows -> seriesJson.replace("rows", rows));
+
+            resultsJson.add(seriesJson);
+        }
+        return resultsJson;
+    }
+
+    static Optional<ObjectNode> buildTags(QueryResult.Series series) {
+        Map<String, String> tags = series.getTags();
+        if (MapUtils.isEmpty(tags)) {
+            return Optional.empty();
+        }
+
+        ObjectNode tag = OBJ_MAPPER.createObjectNode();
+        for (Map.Entry<String, String> t : series.getTags().entrySet()) {
+            tag.put(t.getKey(), t.getValue());
+        }
+        return Optional.of(tag);
+    }
+
+    static Optional<ArrayNode> buildRows(QueryResult.Series series) {
+        List<String> columns = series.getColumns();
+        if (CollectionUtils.isEmpty(columns)) {
+            return Optional.empty();
+        }
+
+        ArrayNode rows = OBJ_MAPPER.createArrayNode();
+        for (List<Object> row : series.getValues()) {
+            rows.add(buildRow(columns, row));
+        }
+        return Optional.of(rows);
+    }
+
+    static ObjectNode buildRow(List<String> columns, List<Object> values) {
+        ObjectNode row = OBJ_MAPPER.createObjectNode();
+        int i = 0;
+        for (String column : columns) {
+            Object value = values.get(i++);
+            if (value instanceof Double) {
+                row.put(column, ((Number) value).doubleValue());
+            } else if (value instanceof Long) {
+                row.put(column, ((Number) value).longValue());
+            } else if (value instanceof Integer) {
+                row.put(column, ((Number) value).intValue());
+            } else if (value instanceof Boolean) {
+                row.put(column, (Boolean) value);
+            } else {
+                row.put(column, (String) value);
+            }
+        }
+        return row;
     }
 
     @Override
     public Set<Relationship> getRelationships() {
         return ImmutableSet.of(REL_SUCCESS, REL_FAILURE);
+    }
+
+    @Override
+    protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
+        return ImmutableList.of(INFLUX_DB_SERVICE, DATABASE_NAME, QUERY_STRING, TIME_UNIT);
     }
 
     /**
@@ -229,4 +298,5 @@ public class QueryInfluxDB extends AbstractProcessor {
                     .build();
         }
     }
+
 }
