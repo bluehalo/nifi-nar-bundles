@@ -47,6 +47,15 @@ import org.influxdb.dto.Point;
         "dynamic properties as field key/values. It should be noted, that field values are assumed " +
         "to be double precision floating-point values, or can be converted to double precision floating-point values.")
 public class PutInfluxDB extends AbstractProcessor {
+    static final String CONSISTENCY_LEVEL_ONE = "One";
+    static final String CONSISTENCY_LEVEL_ALL = "All";
+    static final String CONSISTENCY_LEVEL_ANY = "Any";
+    static final String CONSISTENCY_LEVEL_QUORUM = "Quorum";
+
+    static final String LOG_LEVEL_NONE = "None";
+    static final String LOG_LEVEL_BASIC = "Basic";
+    static final String LOG_LEVEL_HEADERS = "Headers";
+    static final String LOG_LEVEL_FULL = "Full";
 
     static final PropertyDescriptor INFLUX_DB_SERVICE = new PropertyDescriptor.Builder()
             .name("InfluxDb Service")
@@ -92,8 +101,8 @@ public class PutInfluxDB extends AbstractProcessor {
             .displayName("Consistency Level")
             .description("The consistency level used to store events.")
             .required(true)
-            .allowableValues("All", "Any", "One", "Quorum")
-            .defaultValue("One")
+            .allowableValues(CONSISTENCY_LEVEL_ONE, CONSISTENCY_LEVEL_ANY, CONSISTENCY_LEVEL_QUORUM, CONSISTENCY_LEVEL_ALL)
+            .defaultValue(CONSISTENCY_LEVEL_ONE)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
@@ -101,8 +110,7 @@ public class PutInfluxDB extends AbstractProcessor {
             .name("retention")
             .displayName("Retention Policy")
             .description("The retention policy used to store events (https://docs.influxdata.com/influxdb/v1.3/concepts/key_concepts/#retention-policy).")
-            .required(true)
-            .defaultValue("autogen")
+            .required(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
@@ -111,8 +119,8 @@ public class PutInfluxDB extends AbstractProcessor {
             .displayName("Log Level")
             .description("The Log Level")
             .required(true)
-            .allowableValues("None", "Basic", "Headers", "Full")
-            .defaultValue("None")
+            .allowableValues(LOG_LEVEL_NONE, LOG_LEVEL_BASIC, LOG_LEVEL_HEADERS, LOG_LEVEL_FULL)
+            .defaultValue(LOG_LEVEL_NONE)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
@@ -198,7 +206,7 @@ public class PutInfluxDB extends AbstractProcessor {
 
     /**
      *
-     * @return
+     * @return an optional of the data points
      */
     Optional<BatchPoints> collectPoints(ProcessContext context, List<FlowFile> flowFiles, String database) {
         BatchPoints batchPoints = BatchPoints.database(database).build();
@@ -227,9 +235,9 @@ public class PutInfluxDB extends AbstractProcessor {
 
     /**
      *
-     * @param flowfile
-     * @param fieldKeyValues
-     * @return
+     * @param flowfile the nifi flowfile
+     * @param fieldKeyValues the dynamic properties
+     * @return a map of the valid dynamic properties after evaluating expression langauage.
      */
     Map<String, Object> getFields(FlowFile flowfile, Map<String, PropertyValue> fieldKeyValues) {
 
