@@ -57,7 +57,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "checkbox to exclude all process groups from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(new AlwayValidValidator())
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor REMOTE_PROCESS_GROUPS = new PropertyDescriptor.Builder()
             .name("process_group_uuids")
@@ -67,7 +67,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "checkbox to exclude all remote process groups from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(new AlwayValidValidator())
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor PROCESSORS = new PropertyDescriptor.Builder()
             .name("Processors")
@@ -77,7 +77,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "checkbox to exclude all processors from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(new AlwayValidValidator())
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor CONNECTIONS = new PropertyDescriptor.Builder()
             .name("connections_uuids")
@@ -87,7 +87,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "checkbox to exclude all connections from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(new AlwayValidValidator())
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor INPUT_PORTS = new PropertyDescriptor.Builder()
             .name("Input Ports")
@@ -97,7 +97,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "checkbox to exclude all input ports from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(new AlwayValidValidator())
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor OUTPUT_PORTS = new PropertyDescriptor.Builder()
             .name("Output Ports")
@@ -107,7 +107,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "checkbox to exclude all output ports from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(new AlwayValidValidator())
+            .addValidator(Validator.VALID)
             .build();
 
     private List<String> volumes;
@@ -395,16 +395,6 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             return builder.deleteCharAt(builder.length() - 1).toString();
         } catch (UnknownHostException uhe) {
             return "";
-        }
-    }
-
-    /**
-     *
-     */
-    private static class AlwayValidValidator implements Validator {
-        @Override
-        public ValidationResult validate(String s, String s1, ValidationContext validationContext) {
-            return new ValidationResult.Builder().valid(true).build();
         }
     }
 }
