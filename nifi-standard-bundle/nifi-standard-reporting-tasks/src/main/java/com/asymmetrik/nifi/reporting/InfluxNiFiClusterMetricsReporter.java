@@ -132,7 +132,7 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
         collectProcessorMetrics(now, snapshot.getProcessorSnapshots(), points);
         collectConnectionMetrics(now, snapshot.getConnectionSnapshots(), points);
         collectInputPortMetrics(now, snapshot.getInputPortSnapshots(), points);
-        collectOutputPortMetrics(now, snapshot.getInputPortSnapshots(), points);
+        collectOutputPortMetrics(now, snapshot.getOutputPortSnapshots(), points);
     }
 
     private void collectMemoryMetrics(long now, SystemMetricsSnapshot metrics, BatchPoints points) {
