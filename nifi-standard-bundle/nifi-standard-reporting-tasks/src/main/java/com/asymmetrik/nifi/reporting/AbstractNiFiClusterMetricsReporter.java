@@ -6,23 +6,28 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.asymmetrik.nifi.models.ConnectionStatusMetric;
-import com.asymmetrik.nifi.models.influxdb.MetricFields;
 import com.asymmetrik.nifi.models.PortStatusMetric;
 import com.asymmetrik.nifi.models.ProcessGroupStatusMetric;
 import com.asymmetrik.nifi.models.ProcessorStatusMetric;
 import com.asymmetrik.nifi.models.RemoteProcessGroupStatusMetric;
 import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
+import com.asymmetrik.nifi.models.influxdb.MetricFields;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.components.ValidationContext;
+import org.apache.nifi.components.ValidationResult;
+import org.apache.nifi.components.Validator;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.controller.status.ConnectionStatus;
 import org.apache.nifi.controller.status.PortStatus;
@@ -47,50 +52,62 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
     static final PropertyDescriptor PROCESS_GROUPS = new PropertyDescriptor.Builder()
             .name("Process Groups")
             .displayName("Process Groups")
-            .description("CSV list of process group names for which the aggregated statistics will be generated.")
+            .description("CSV list of process group names or UUIDs for which the aggregated statistics will be generated. " +
+                    "If no value is set, statistics from all process groups will be reported. Use the \"Set empty string\" " +
+                    "checkbox to exclude all process groups from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor REMOTE_PROCESS_GROUPS = new PropertyDescriptor.Builder()
             .name("process_group_uuids")
             .displayName("Remote Process Groups")
-            .description("CSV list of remote process group UUIDs for which the aggregated statistics will be generated.")
+            .description("CSV list of remote process group UUIDs for which the aggregated statistics will be generated." +
+                    "If no value is set, statistics from all remote process groups will be reported. Use the \"Set empty string\" " +
+                    "checkbox to exclude all remote process groups from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor PROCESSORS = new PropertyDescriptor.Builder()
             .name("Processors")
             .displayName("Processors")
-            .description("CSV list of processor names for which the aggregated statistics will be generated.")
+            .description("CSV list of processor names or UUIDs for which the aggregated statistics will be generated." +
+                    "If no value is set, statistics from all processors will be reported. Use the \"Set empty string\" " +
+                    "checkbox to exclude all processors from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor CONNECTIONS = new PropertyDescriptor.Builder()
             .name("connections_uuids")
             .displayName("Connections")
-            .description("CSV list of connection UUIDs for which the aggregated statistics will be generated.")
+            .description("CSV list of connection UUIDs for which the aggregated statistics will be generated." +
+                    "If no value is set, statistics from all connections will be reported. Use the \"Set empty string\" " +
+                    "checkbox to exclude all connections from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor INPUT_PORTS = new PropertyDescriptor.Builder()
             .name("Input Ports")
             .displayName("Input Ports")
-            .description("CSV list of input port UUIDs for which the aggregated statistics will be generated.")
+            .description("CSV list of input port UUIDs for which the aggregated statistics will be generated." +
+                    "If no value is set, statistics from all input ports will be reported. Use the \"Set empty string\" " +
+                    "checkbox to exclude all input ports from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor OUTPUT_PORTS = new PropertyDescriptor.Builder()
             .name("Output Ports")
             .displayName("Output Ports")
-            .description("CSV list of output port UUIDs for which the aggregated statistics will be generated.")
+            .description("CSV list of output port UUIDs for which the aggregated statistics will be generated." +
+                    "If no value is set, statistics from all output ports will be reported. Use the \"Set empty string\" " +
+                    "checkbox to exclude all output ports from being reported.")
             .required(false)
             .expressionLanguageSupported(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(Validator.VALID)
             .build();
 
     private List<String> volumes;
@@ -100,6 +117,12 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
     private List<String> connections;
     private List<String> inputPorts;
     private List<String> outputPorts;
+    private boolean collectAllProcessGroups;
+    private boolean collectAllRemoteProcessGroups;
+    private boolean collectAllProcessors;
+    private boolean collectAllConnections;
+    private boolean collectAllInputPorts;
+    private boolean collectAllOutputPorts;
 
     abstract void publish(ReportingContext reportingContext, SystemMetricsSnapshot systemMetricsSnapshot);
 
@@ -112,6 +135,13 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         connections = populateInputsFromCsv(context, CONNECTIONS);
         inputPorts = populateInputsFromCsv(context, INPUT_PORTS);
         outputPorts = populateInputsFromCsv(context, OUTPUT_PORTS);
+
+        collectAllProcessGroups = !context.getProperty(PROCESS_GROUPS).isSet();
+        collectAllRemoteProcessGroups = !context.getProperty(REMOTE_PROCESS_GROUPS).isSet();
+        collectAllProcessors = !context.getProperty(PROCESSORS).isSet();
+        collectAllConnections = !context.getProperty(CONNECTIONS).isSet();
+        collectAllInputPorts = !context.getProperty(INPUT_PORTS).isSet();
+        collectAllOutputPorts = !context.getProperty(OUTPUT_PORTS).isSet();
     }
 
     @Override
@@ -145,32 +175,32 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             }
 
             // Add optional process group snapshots
-            if (CollectionUtils.isNotEmpty(processGroups)) {
+            if (collectAllProcessGroups || CollectionUtils.isNotEmpty(processGroups)) {
                 populateAdditionalProcessGroupSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
             }
 
             // Add optional remote process group snapshots
-            if (CollectionUtils.isNotEmpty(remoteProcessGroups)) {
+            if (collectAllRemoteProcessGroups || CollectionUtils.isNotEmpty(remoteProcessGroups)) {
                 populateRemoteProcessGroupSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
             }
 
             // Add optional processor metrics
-            if (CollectionUtils.isNotEmpty(processors)) {
+            if (collectAllProcessors || CollectionUtils.isNotEmpty(processors)) {
                 populateProcessorSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
             }
 
             // Add optional connection metrics
-            if (CollectionUtils.isNotEmpty(connections)) {
+            if (collectAllConnections || CollectionUtils.isNotEmpty(connections)) {
                 populateConnectionSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
             }
 
             // Add optional input port metrics
-            if (CollectionUtils.isNotEmpty(inputPorts)) {
+            if (collectAllInputPorts || CollectionUtils.isNotEmpty(inputPorts)) {
                 populateInputPortSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
             }
 
             // Add optional output port metrics
-            if (CollectionUtils.isNotEmpty(outputPorts)) {
+            if (collectAllOutputPorts || CollectionUtils.isNotEmpty(outputPorts)) {
                 populateOutputPortSnapshots(eventAccess.getControllerStatus(), systemMetricsSnapshot);
             }
 
@@ -182,7 +212,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
     }
 
     private void populateAdditionalProcessGroupSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
-        if (processGroups.contains(status.getName()) || processGroups.contains(status.getId())) {
+        if (collectAllProcessGroups || processGroups.contains(status.getName()) || processGroups.contains(status.getId())) {
             systemMetricsSnapshot.getProcessGroupSnapshots().add(new ProcessGroupStatusMetric(status));
         }
         for (ProcessGroupStatus processGroupStatus : new ArrayList<>(status.getProcessGroupStatus())) {
@@ -192,7 +222,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
 
     private void populateProcessorSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
         for (ProcessorStatus processorStatus : status.getProcessorStatus()) {
-            if (processors.contains(processorStatus.getName()) || processors.contains(processorStatus.getId())) {
+            if (collectAllProcessors || processors.contains(processorStatus.getName()) || processors.contains(processorStatus.getId())) {
                 systemMetricsSnapshot.getProcessorSnapshots().add(new ProcessorStatusMetric(processorStatus));
             }
         }
@@ -204,7 +234,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
 
     private void populateRemoteProcessGroupSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
         for (RemoteProcessGroupStatus remoteProcessGroupStatus : status.getRemoteProcessGroupStatus()) {
-            if (remoteProcessGroups.contains(remoteProcessGroupStatus.getId())) {
+            if (collectAllRemoteProcessGroups || remoteProcessGroups.contains(remoteProcessGroupStatus.getId())) {
                 systemMetricsSnapshot.getRemoteProcessGroupSnapshots().add(new RemoteProcessGroupStatusMetric(remoteProcessGroupStatus));
             }
         }
@@ -216,7 +246,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
 
     private void populateConnectionSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
         for (ConnectionStatus connectionStatus : status.getConnectionStatus()) {
-            if (connections.contains(connectionStatus.getId())) {
+            if (collectAllConnections || connections.contains(connectionStatus.getId())) {
                 systemMetricsSnapshot.getConnectionSnapshots().add(new ConnectionStatusMetric(connectionStatus));
             }
         }
@@ -228,7 +258,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
 
     private void populateInputPortSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
         for (PortStatus portStatus : status.getInputPortStatus()) {
-            if (inputPorts.contains(portStatus.getId())) {
+            if (collectAllInputPorts || inputPorts.contains(portStatus.getId())) {
                 systemMetricsSnapshot.getInputPortSnapshots().add(new PortStatusMetric(portStatus));
             }
         }
@@ -240,7 +270,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
 
     private void populateOutputPortSnapshots(ProcessGroupStatus status, SystemMetricsSnapshot systemMetricsSnapshot) {
         for (PortStatus portStatus : status.getOutputPortStatus()) {
-            if (outputPorts.contains(portStatus.getId())) {
+            if (collectAllOutputPorts || outputPorts.contains(portStatus.getId())) {
                 systemMetricsSnapshot.getOutputPortSnapshots().add(new PortStatusMetric(portStatus));
             }
         }
@@ -280,16 +310,26 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
     }
 
     private List<String> populateInputsFromCsv(ConfigurationContext context, PropertyDescriptor propertyDescriptor) {
-        List<String> list = new ArrayList<>();
-        if (context.getProperty(propertyDescriptor).isSet()) {
-            String csv = context.getProperty(propertyDescriptor).evaluateAttributeExpressions().getValue();
-            if (StringUtils.isNotEmpty(csv)) {
-                for (String s : csv.split(",")) {
-                    list.add(s.trim());
-                }
+        if (!context.getProperty(propertyDescriptor).isSet()) {
+            return new ArrayList<>();
+        }
+
+        return parseInputField(context.getProperty(propertyDescriptor).evaluateAttributeExpressions().getValue());
+    }
+
+    List<String> parseInputField(String input) {
+        Set<String> list = new HashSet<>();
+        if (StringUtils.isEmpty(input)) {
+            return new ArrayList<>();
+        }
+
+        for (String s : input.split(",")) {
+            s = s.trim();
+            if (StringUtils.isNotEmpty(s)) {
+                list.add(s);
             }
         }
-        return list;
+        return new ArrayList<>(list);
     }
 
     //virtual machine metrics

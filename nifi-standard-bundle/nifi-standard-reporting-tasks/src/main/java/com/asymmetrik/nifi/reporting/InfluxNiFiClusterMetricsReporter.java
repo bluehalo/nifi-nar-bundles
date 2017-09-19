@@ -34,7 +34,7 @@ import org.influxdb.dto.Point;
 @Tags({"disk", "system", "monitoring", "metrics", "reporting"})
 @DynamicProperty(name = "tag name", value = "tag value", description = "dynamic properties will be converted to tags and will be applied to all records")
 @CapabilityDescription("Calculates the amount of storage space available for the Content Repositories and Flowfile Repository, " +
-        "calculates the total count and size of the queue, and emits these metrics to InfluxDB")
+        "calculates the total count and size of the queue, and emits these metrics to InfluxDB.")
 
 public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetricsReporter {
 
@@ -132,7 +132,7 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
         collectProcessorMetrics(now, snapshot.getProcessorSnapshots(), points);
         collectConnectionMetrics(now, snapshot.getConnectionSnapshots(), points);
         collectInputPortMetrics(now, snapshot.getInputPortSnapshots(), points);
-        collectOutputPortMetrics(now, snapshot.getInputPortSnapshots(), points);
+        collectOutputPortMetrics(now, snapshot.getOutputPortSnapshots(), points);
     }
 
     private void collectMemoryMetrics(long now, SystemMetricsSnapshot metrics, BatchPoints points) {
