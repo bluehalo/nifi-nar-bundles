@@ -99,4 +99,11 @@ public class TestInfluxNiFiClusterMetricsReporter {
         List<Point> points = batchPoints.getPoints();
         assertEquals(4, points.size());
     }
+
+    @Test
+    public void testCsvParsing() {
+        InfluxNiFiClusterMetricsReporter metricsInfluxDbReporter = new InfluxNiFiClusterMetricsReporter();
+        List<String> fields = metricsInfluxDbReporter.parseInputField("a, b, , , b ,   ,   cat, ");
+        assertEquals(3, fields.size());
+    }
 }

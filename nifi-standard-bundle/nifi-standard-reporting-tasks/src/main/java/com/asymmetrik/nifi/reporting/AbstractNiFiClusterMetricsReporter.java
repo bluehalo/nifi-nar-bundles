@@ -6,8 +6,10 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.asymmetrik.nifi.models.ConnectionStatusMetric;
@@ -308,16 +310,26 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
     }
 
     private List<String> populateInputsFromCsv(ConfigurationContext context, PropertyDescriptor propertyDescriptor) {
-        List<String> list = new ArrayList<>();
-        if (context.getProperty(propertyDescriptor).isSet()) {
-            String csv = context.getProperty(propertyDescriptor).evaluateAttributeExpressions().getValue();
-            if (StringUtils.isNotEmpty(csv)) {
-                for (String s : csv.split(",")) {
-                    list.add(s.trim());
-                }
+        if (!context.getProperty(propertyDescriptor).isSet()) {
+            return new ArrayList<>();
+        }
+
+        return parseInputField(context.getProperty(propertyDescriptor).evaluateAttributeExpressions().getValue());
+    }
+
+    List<String> parseInputField(String input) {
+        Set<String> list = new HashSet<>();
+        if (StringUtils.isEmpty(input)) {
+            return new ArrayList<>();
+        }
+
+        for (String s : input.split(",")) {
+            s = s.trim();
+            if (StringUtils.isNotEmpty(s)) {
+                list.add(s);
             }
         }
-        return list;
+        return new ArrayList<>(list);
     }
 
     //virtual machine metrics
