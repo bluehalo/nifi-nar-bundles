@@ -19,7 +19,7 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-standard-services</artifactId>
-        <version>0.5.3-SNAPSHOT</version>
+        <version>0.5.3</version>
     </parent>
 
     <artifactId>nifi-cache-service-api</artifactId>
