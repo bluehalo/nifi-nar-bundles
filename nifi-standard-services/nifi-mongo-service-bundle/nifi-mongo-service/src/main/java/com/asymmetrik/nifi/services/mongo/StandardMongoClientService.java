@@ -112,7 +112,7 @@ public class StandardMongoClientService extends AbstractControllerService implem
             .build();
 
     private static final List<PropertyDescriptor> properties = ImmutableList.of(
-            HOSTS, SSL_CONTEXT_SERVICE, AUTH_DATABASE, USERNAME, PASSWORD, MIN_POOL_SIZE, MAX_POOL_SIZE);
+            HOSTS, SSL_CONTEXT_SERVICE, CLIENT_AUTH, AUTH_DATABASE, USERNAME, PASSWORD, MIN_POOL_SIZE, MAX_POOL_SIZE);
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
