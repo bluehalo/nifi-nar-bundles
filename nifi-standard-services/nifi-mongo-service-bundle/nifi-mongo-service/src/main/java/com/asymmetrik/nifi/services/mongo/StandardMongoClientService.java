@@ -59,6 +59,15 @@ public class StandardMongoClientService extends AbstractControllerService implem
             .identifiesControllerService(SSLContextService.class)
             .build();
 
+    public static final PropertyDescriptor SSL_ALLOW_INVALID_HOSTNAMES = new PropertyDescriptor.Builder()
+            .name("ssl-allow-invalid-hostnames")
+            .displayName("Invalid Hostnames")
+            .description("Allows invalid hostnames for connections over SSL. This translates to the Mongo Client's sslInvalidHostNameAllowed property.")
+            .required(true)
+            .allowableValues("true", "false")
+            .defaultValue("false")
+            .build();
+
     public static final PropertyDescriptor CLIENT_AUTH = new PropertyDescriptor.Builder()
             .name("ssl-client-auth")
             .displayName("Client Auth")
@@ -111,7 +120,8 @@ public class StandardMongoClientService extends AbstractControllerService implem
             .build();
 
     private static final List<PropertyDescriptor> properties = ImmutableList.of(
-            HOSTS, SSL_CONTEXT_SERVICE, CLIENT_AUTH, AUTH_DATABASE, USERNAME, PASSWORD, MIN_POOL_SIZE, MAX_POOL_SIZE);
+            HOSTS, SSL_CONTEXT_SERVICE, SSL_ALLOW_INVALID_HOSTNAMES, CLIENT_AUTH,
+            AUTH_DATABASE, USERNAME, PASSWORD, MIN_POOL_SIZE, MAX_POOL_SIZE);
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
@@ -195,6 +205,7 @@ public class StandardMongoClientService extends AbstractControllerService implem
     protected MongoClientOptions getClientOptions(final ConfigurationContext context) {
         int minConnectionsPerHost = context.getProperty(MIN_POOL_SIZE).isSet() ? context.getProperty(MIN_POOL_SIZE).asInteger() : 0;
         int maxConnectionsPerHost = context.getProperty(MAX_POOL_SIZE).isSet() ? context.getProperty(MAX_POOL_SIZE).asInteger() : 100;
+        boolean sslAllowInvalidHostnames = context.getProperty(SSL_ALLOW_INVALID_HOSTNAMES).asBoolean();
 
         Builder builder = MongoClientOptions.builder()
                 .minConnectionsPerHost(minConnectionsPerHost)
@@ -209,7 +220,8 @@ public class StandardMongoClientService extends AbstractControllerService implem
              * to SSLSocketFactory.getDefault() or SocketFactory.getDefault(), respectively
              */
             builder.sslEnabled(true)
-                .socketFactory(sslContext.getSocketFactory());
+                .socketFactory(sslContext.getSocketFactory())
+                .sslInvalidHostNameAllowed(sslAllowInvalidHostnames);
         }
 
         return builder.build();
