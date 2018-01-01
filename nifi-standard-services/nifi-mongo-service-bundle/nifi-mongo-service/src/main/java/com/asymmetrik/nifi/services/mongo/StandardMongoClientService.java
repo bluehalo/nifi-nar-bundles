@@ -15,7 +15,6 @@ import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientOptions.Builder;
 import com.mongodb.MongoCredential;
 import com.mongodb.ServerAddress;
-import com.mongodb.client.MongoIterable;
 
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
@@ -135,16 +134,6 @@ public class StandardMongoClientService extends AbstractControllerService implem
             mongoClient = new MongoClient(addresses, clientOptions);
         }
 
-        MongoIterable<String> dbNames = mongoClient.listDatabaseNames();
-        boolean hasNext = false;
-        try {
-            hasNext = dbNames.iterator().hasNext();
-        } catch (Exception ex) {
-            throw new InitializationException("Unable to find Mongo DBs", ex);
-        }
-        if (!hasNext) {
-            throw new InitializationException("Unable to find Mongo DBs");
-        }
     }
 
     @OnDisabled
