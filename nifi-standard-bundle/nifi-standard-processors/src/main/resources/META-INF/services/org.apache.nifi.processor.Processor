@@ -26,6 +26,7 @@ com.asymmetrik.nifi.processors.InspectZipContents
 com.asymmetrik.nifi.processors.Md5HashAttributes
 com.asymmetrik.nifi.processors.mongo.CreateObjectId
 com.asymmetrik.nifi.processors.mongo.QueryMongo
+com.asymmetrik.nifi.processors.mongo.RemoveMongo
 com.asymmetrik.nifi.processors.mongo.StoreInMongo
 com.asymmetrik.nifi.processors.mongo.UpdateMongo
 com.asymmetrik.nifi.processors.PutScp
