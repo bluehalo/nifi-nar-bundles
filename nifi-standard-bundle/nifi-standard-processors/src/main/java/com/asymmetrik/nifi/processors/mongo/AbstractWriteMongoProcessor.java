@@ -172,7 +172,7 @@ public abstract class AbstractWriteMongoProcessor extends AbstractMongoProcessor
         // mapping of array indices for flow file errors
         Map<Integer, BulkWriteError> writeErrors = new HashMap<>();
         try {
-            this.collection.bulkWrite(documentsToWrite);
+            this.collection.bulkWrite(documentsToWrite, this.writeOptions);
         } catch (MongoBulkWriteException e) {
             List<BulkWriteError> errors = e.getWriteErrors();
             for (BulkWriteError docError : errors) {
