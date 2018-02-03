@@ -30,104 +30,104 @@ import org.bson.Document;
 import static com.asymmetrik.nifi.processors.mongo.MongoProps.*;
 
 @SupportsBatching
-@Tags({ "asymmetrik", "mongo", "query" })
+@Tags({"asymmetrik", "mongo", "query"})
 @CapabilityDescription("Performs mongo queries.")
 public class QueryMongo extends AbstractMongoProcessor {
 
-	protected static final Relationship REL_NO_RESULT_SUCCESS = new Relationship.Builder().name("noresult")
+    protected static final Relationship REL_NO_RESULT_SUCCESS = new Relationship.Builder().name("noresult")
             .description("Query files that generate no results are transferred to this relationship").build();
 
-	Integer limit;
-	private List<PropertyDescriptor> props = Arrays.asList(MONGO_SERVICE, DATABASE, COLLECTION, QUERY, PROJECTION, SORT,
-			LIMIT, WRITE_CONCERN);
-	private PropertyValue queryProperty;
-	private PropertyValue projectionProperty;
-	private PropertyValue sortProperty;
+    Integer limit;
+    private List<PropertyDescriptor> props = Arrays.asList(MONGO_SERVICE, DATABASE, COLLECTION, QUERY, PROJECTION, SORT,
+            LIMIT, WRITE_CONCERN);
+    private PropertyValue queryProperty;
+    private PropertyValue projectionProperty;
+    private PropertyValue sortProperty;
 
-	@Override
-	protected void init(ProcessorInitializationContext context) {
-		properties = Collections.unmodifiableList(props);
-		relationships = Collections.unmodifiableSet(Sets.newHashSet(REL_SUCCESS, REL_FAILURE, REL_NO_RESULT_SUCCESS));
-		clientId = getIdentifier();
-	}
+    @Override
+    protected void init(ProcessorInitializationContext context) {
+        properties = Collections.unmodifiableList(props);
+        relationships = Collections.unmodifiableSet(Sets.newHashSet(REL_SUCCESS, REL_FAILURE, REL_NO_RESULT_SUCCESS));
+        clientId = getIdentifier();
+    }
 
-	@OnScheduled
-	public void onScheduled(final ProcessContext context) {
-		queryProperty = context.getProperty(QUERY);
-		projectionProperty = context.getProperty(PROJECTION);
-		sortProperty = context.getProperty(SORT);
+    @OnScheduled
+    public void onScheduled(final ProcessContext context) {
+        queryProperty = context.getProperty(QUERY);
+        projectionProperty = context.getProperty(PROJECTION);
+        sortProperty = context.getProperty(SORT);
 
-		limit = context.getProperty(LIMIT).isSet() ? context.getProperty(LIMIT).asInteger() : null;
+        limit = context.getProperty(LIMIT).isSet() ? context.getProperty(LIMIT).asInteger() : null;
 
-		createMongoConnection(context);
-		ensureIndexes(context, collection);
-	}
+        createMongoConnection(context);
+        ensureIndexes(context, collection);
+    }
 
-	@Override
-	public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
-		FlowFile flowFile = session.get();
-		if (flowFile == null) {
-			return;
-		}
+    @Override
+    public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
+        FlowFile flowFile = session.get();
+        if (flowFile == null) {
+            return;
+        }
 
-		ComponentLog logger = this.getLogger();
+        ComponentLog logger = this.getLogger();
 
-		// Evaluate expression language and create BSON Documents
-		Document query = (queryProperty.isSet())
-				? Document.parse(queryProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
-		Document projection = (projectionProperty.isSet())
-				? Document.parse(projectionProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
-		Document sort = (sortProperty.isSet())
-				? Document.parse(sortProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
+        // Evaluate expression language and create BSON Documents
+        Document query = (queryProperty.isSet())
+                ? Document.parse(queryProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
+        Document projection = (projectionProperty.isSet())
+                ? Document.parse(projectionProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
+        Document sort = (sortProperty.isSet())
+                ? Document.parse(sortProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
 
-		try {
-			FindIterable<Document> it = (query != null) ? collection.find(query) : collection.find();
+        try {
+            FindIterable<Document> it = (query != null) ? collection.find(query) : collection.find();
 
-			// Apply projection if needed
-			if (projection != null) {
-				it.projection(projection);
-			}
+            // Apply projection if needed
+            if (projection != null) {
+                it.projection(projection);
+            }
 
-			// Apply sort if needed
-			if (sort != null) {
-				it.sort(sort);
-			}
+            // Apply sort if needed
+            if (sort != null) {
+                it.sort(sort);
+            }
 
-			// Apply limit if set
-			if (limit != null) {
-				it.limit(limit.intValue());
-			}
+            // Apply limit if set
+            if (limit != null) {
+                it.limit(limit.intValue());
+            }
 
-			// Iterate and create flowfile for each result
-			final MongoCursor<Document> cursor = it.iterator();
+            // Iterate and create flowfile for each result
+            final MongoCursor<Document> cursor = it.iterator();
 
-			try {
-				if (!cursor.hasNext()) {
-					FlowFile ff = session.clone(flowFile);
-					session.transfer(ff, REL_NO_RESULT_SUCCESS);
-				} else {
-					while (cursor.hasNext()) {
-						// Create new flowfile with all parent attributes
-						FlowFile ff = session.clone(flowFile);
-						ff = session.write(ff, new OutputStreamCallback() {
-							@Override
-							public void process(OutputStream outputStream) throws IOException {
-								IOUtils.write(cursor.next().toJson(), outputStream);
-							}
-						});
+            try {
+                if (!cursor.hasNext()) {
+                    FlowFile ff = session.clone(flowFile);
+                    session.transfer(ff, REL_NO_RESULT_SUCCESS);
+                } else {
+                    while (cursor.hasNext()) {
+                        // Create new flowfile with all parent attributes
+                        FlowFile ff = session.clone(flowFile);
+                        ff = session.write(ff, new OutputStreamCallback() {
+                            @Override
+                            public void process(OutputStream outputStream) throws IOException {
+                                IOUtils.write(cursor.next().toJson(), outputStream);
+                            }
+                        });
 
-						session.transfer(ff, REL_SUCCESS);
-					}
-				}
-			} finally {
-				cursor.close();
-				session.remove(flowFile);
-			}
+                        session.transfer(ff, REL_SUCCESS);
+                    }
+                }
+            } finally {
+                cursor.close();
+                session.remove(flowFile);
+            }
 
-		} catch (Exception e) {
-			logger.error("Failed to execute query {} due to {}.", new Object[] { query, e }, e);
-			flowFile = session.putAttribute(flowFile, "mongo.exception", e.getMessage());
-			session.transfer(flowFile, REL_FAILURE);
-		}
-	}
+        } catch (Exception e) {
+            logger.error("Failed to execute query {} due to {}.", new Object[] { query, e }, e);
+            flowFile = session.putAttribute(flowFile, "mongo.exception", e.getMessage());
+            session.transfer(flowFile, REL_FAILURE);
+        }
+    }
 }
