@@ -114,5 +114,6 @@ public class QueryMongoIT {
 
         runner.assertTransferCount(AbstractMongoProcessor.REL_FAILURE, 0);
         runner.assertTransferCount(AbstractMongoProcessor.REL_SUCCESS, 0);
+        runner.assertTransferCount(QueryMongo.REL_NO_RESULT_SUCCESS, 1);
     }
 }
