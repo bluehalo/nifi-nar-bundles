@@ -22,6 +22,7 @@ import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.ProcessorInitializationContext;
+import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.bson.Document;
@@ -33,8 +34,12 @@ import static com.asymmetrik.nifi.processors.mongo.MongoProps.*;
 @CapabilityDescription("Performs mongo queries.")
 public class QueryMongo extends AbstractMongoProcessor {
 
+    protected static final Relationship REL_NO_RESULT_SUCCESS = new Relationship.Builder().name("noresult")
+            .description("Query files that generate no results are transferred to this relationship").build();
+
     Integer limit;
-    private List<PropertyDescriptor> props = Arrays.asList(MONGO_SERVICE, DATABASE, COLLECTION, QUERY, PROJECTION, SORT, LIMIT, WRITE_CONCERN);
+    private List<PropertyDescriptor> props = Arrays.asList(MONGO_SERVICE, DATABASE, COLLECTION, QUERY, PROJECTION, SORT,
+            LIMIT, WRITE_CONCERN);
     private PropertyValue queryProperty;
     private PropertyValue projectionProperty;
     private PropertyValue sortProperty;
@@ -42,7 +47,7 @@ public class QueryMongo extends AbstractMongoProcessor {
     @Override
     protected void init(ProcessorInitializationContext context) {
         properties = Collections.unmodifiableList(props);
-        relationships = Collections.unmodifiableSet(Sets.newHashSet(REL_SUCCESS, REL_FAILURE));
+        relationships = Collections.unmodifiableSet(Sets.newHashSet(REL_SUCCESS, REL_FAILURE, REL_NO_RESULT_SUCCESS));
         clientId = getIdentifier();
     }
 
@@ -68,9 +73,12 @@ public class QueryMongo extends AbstractMongoProcessor {
         ComponentLog logger = this.getLogger();
 
         // Evaluate expression language and create BSON Documents
-        Document query = (queryProperty.isSet()) ? Document.parse(queryProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
-        Document projection = (projectionProperty.isSet()) ? Document.parse(projectionProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
-        Document sort = (sortProperty.isSet()) ? Document.parse(sortProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
+        Document query = (queryProperty.isSet())
+                ? Document.parse(queryProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
+        Document projection = (projectionProperty.isSet())
+                ? Document.parse(projectionProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
+        Document sort = (sortProperty.isSet())
+                ? Document.parse(sortProperty.evaluateAttributeExpressions(flowFile).getValue()) : null;
 
         try {
             FindIterable<Document> it = (query != null) ? collection.find(query) : collection.find();
@@ -92,18 +100,24 @@ public class QueryMongo extends AbstractMongoProcessor {
 
             // Iterate and create flowfile for each result
             final MongoCursor<Document> cursor = it.iterator();
-            try {
-                while (cursor.hasNext()) {
-                    // Create new flowfile with all parent attributes
-                    FlowFile ff = session.clone(flowFile);
-                    ff = session.write(ff, new OutputStreamCallback() {
-                        @Override
-                        public void process(OutputStream outputStream) throws IOException {
-                            IOUtils.write(cursor.next().toJson(), outputStream);
-                        }
-                    });
 
-                    session.transfer(ff, REL_SUCCESS);
+            try {
+                if (!cursor.hasNext()) {
+                    FlowFile ff = session.clone(flowFile);
+                    session.transfer(ff, REL_NO_RESULT_SUCCESS);
+                } else {
+                    while (cursor.hasNext()) {
+                        // Create new flowfile with all parent attributes
+                        FlowFile ff = session.clone(flowFile);
+                        ff = session.write(ff, new OutputStreamCallback() {
+                            @Override
+                            public void process(OutputStream outputStream) throws IOException {
+                                IOUtils.write(cursor.next().toJson(), outputStream);
+                            }
+                        });
+
+                        session.transfer(ff, REL_SUCCESS);
+                    }
                 }
             } finally {
                 cursor.close();
@@ -111,7 +125,7 @@ public class QueryMongo extends AbstractMongoProcessor {
             }
 
         } catch (Exception e) {
-            logger.error("Failed to execute query {} due to {}.", new Object[]{query, e}, e);
+            logger.error("Failed to execute query {} due to {}.", new Object[] { query, e }, e);
             flowFile = session.putAttribute(flowFile, "mongo.exception", e.getMessage());
             session.transfer(flowFile, REL_FAILURE);
         }
