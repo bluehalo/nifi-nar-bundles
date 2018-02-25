@@ -266,35 +266,27 @@ public class FetchFileSplits extends AbstractProcessor {
 
             final String headerLine = includeHeader ? bufferedReader.readLine() : null;
 
-            FlowFile flowFileSplit = createWithHeader(session, flowFile, headerLine);
-
             int writtenLines = 0;
             StringBuffer sb = new StringBuffer();
             String nextLine;
             while( (nextLine = bufferedReader.readLine()) != null ) {
 
-                getLogger().info("Read line: " + nextLine);
                 sb.append(System.lineSeparator()).append(nextLine);
                 writtenLines += 1;
 
                 if(writtenLines >= linesPerSplit) {
                     // Write the current split to a FF
-                    writeAndTransfer(session, flowFileSplit, sb);
+                    writeAndTransfer(session, flowFile, headerLine, sb);
 
                     // Prep for the next split
                     writtenLines = 0;
                     sb = new StringBuffer();
-                    flowFileSplit = createWithHeader(session, flowFile, headerLine);
                 }
             }
 
             // If any lines were written before we reached the next split threshold,
             if(writtenLines > 0) {
-                getLogger().info("Some lines remained afterwards!");
-                writeAndTransfer(session, flowFileSplit, sb);
-            }
-            else {
-                session.remove(flowFileSplit);
+                writeAndTransfer(session, flowFile, headerLine, sb);
             }
 
         } catch (final IOException ioe) {
@@ -357,29 +349,11 @@ public class FetchFileSplits extends AbstractProcessor {
         }
     }
 
-    private FlowFile createWithHeader(final ProcessSession session, final FlowFile flowFile, final String headerLine) {
-        FlowFile flowFileSplit = session.clone(flowFile, 0, 0);
-        if(headerLine != null) {
-            final ComponentLog logger = getLogger();
-            flowFileSplit = session.write(flowFileSplit, os -> {
-                logger.info("Writing new header line: " + headerLine);
-                os.write(headerLine.getBytes(StandardCharsets.UTF_8));
-            });
-        }
-        return flowFileSplit;
-    }
-
-    private void writeAndTransfer(final ProcessSession session, FlowFile flowFileSplit, final StringBuffer sb) throws IOException {
-        final String splitContent = sb.toString();
-        getLogger().info("Writing content: " + splitContent);
-        flowFileSplit = session.append(flowFileSplit, os ->
+    private void writeAndTransfer(final ProcessSession session, final FlowFile originalFlowFile, final String headerLine, final StringBuffer sb) {
+        final String splitContent = ( headerLine == null ) ? sb.toString() : headerLine + sb.toString();
+        FlowFile flowFileSplit = session.create(originalFlowFile);
+        flowFileSplit = session.write(flowFileSplit, os ->
                 os.write(splitContent.getBytes(StandardCharsets.UTF_8)));
-
-        InputStream read = session.read(flowFileSplit);
-        List<String> lines = IOUtils.readLines(read);
-        read.close();
-
-        getLogger().info("Transferring FF with contents: " + StringUtils.join(lines, "\n"));
 
         session.transfer(flowFileSplit, REL_SPLITS);
     }
