@@ -2,9 +2,9 @@ package com.asymmetrik.nifi.processors;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.behavior.InputRequirement;
+import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.components.AllowableValue;
@@ -12,15 +12,11 @@ import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.components.ValidationContext;
 import org.apache.nifi.components.ValidationResult;
 import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.logging.ComponentLog;
-import org.apache.nifi.logging.LogLevel;
 import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
-import org.apache.nifi.processor.io.OutputStreamCallback;
-import org.apache.nifi.processor.io.StreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
 
 import java.io.*;
@@ -40,6 +36,7 @@ import java.util.*;
 @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
 @Tags({"asymmetrik", "get", "file", "split"})
 @CapabilityDescription("Reads in a file from the local filesystem and splits it while reading it in.")
+@SupportsBatching
 public class FetchFileSplits extends AbstractProcessor {
 
     static final AllowableValue COMPLETION_NONE = new AllowableValue("None", "None", "Leave the file as-is");
@@ -78,7 +75,8 @@ public class FetchFileSplits extends AbstractProcessor {
         .build();
 
     static final PropertyDescriptor LINES_TO_SKIP = new PropertyDescriptor.Builder()
-        .name("Lines to Skip")
+        .name("lines-to-skip")
+        .displayName("Lines to Skip")
         .description("The number of lines to skip before reading lines for the splits.")
         .required(true)
         .expressionLanguageSupported(true)
@@ -86,17 +84,18 @@ public class FetchFileSplits extends AbstractProcessor {
         .defaultValue("0")
         .build();
     static final PropertyDescriptor INCLUDE_HEADER = new PropertyDescriptor.Builder()
-        .name("Include Header Line")
+        .name("include-header-line")
+        .displayName("Include Header Line")
         .description("Whether or not to read and include a header line that will be " +
                 "repeated for each split FlowFile")
         .required(true)
         .expressionLanguageSupported(true)
-        .addValidator(StandardValidators.BOOLEAN_VALIDATOR)
-        .allowableValues(new AllowableValue("true"), new AllowableValue("false"))
+        .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
         .defaultValue("false")
         .build();
     static final PropertyDescriptor LINES_PER_SPLIT = new PropertyDescriptor.Builder()
-        .name("Lines per Split")
+        .name("lines-per-split")
+        .displayName("Lines per Split")
         .description("The number of lines to be included in each split, not including the " +
                 "header line (if applicable).")
         .required(true)
@@ -105,7 +104,8 @@ public class FetchFileSplits extends AbstractProcessor {
         .defaultValue("1")
         .build();
     static final PropertyDescriptor FILENAME = new PropertyDescriptor.Builder()
-        .name("Filename")
+        .name("filename")
+        .displayName("Filename")
         .description("Name of the file that will be retrieved from the file system")
         .required(true)
         .expressionLanguageSupported(true)
@@ -113,7 +113,8 @@ public class FetchFileSplits extends AbstractProcessor {
         .defaultValue("${filename}")
         .build();
     static final PropertyDescriptor COMPLETION_STRATEGY = new PropertyDescriptor.Builder()
-        .name("Completion Strategy")
+        .name("completion-strategy")
+        .displayName("Completion Strategy")
         .description("Specifies what to do with the original file on the file system once it has been pulled into NiFi")
         .expressionLanguageSupported(false)
         .allowableValues(COMPLETION_NONE, COMPLETION_MOVE, COMPLETION_DELETE)
@@ -121,7 +122,8 @@ public class FetchFileSplits extends AbstractProcessor {
         .required(true)
         .build();
     static final PropertyDescriptor MOVE_DESTINATION_DIR = new PropertyDescriptor.Builder()
-        .name("Move Destination Directory")
+        .name("move-destination-directory")
+        .displayName("Move Destination Directory")
         .description("The directory to the move the original file to once it has been fetched from the file system. This property is ignored unless the Completion Strategy is set to \"Move File\". "
                 + "If the directory does not exist, it will be created.")
         .expressionLanguageSupported(true)
@@ -129,32 +131,18 @@ public class FetchFileSplits extends AbstractProcessor {
         .required(false)
         .build();
     static final PropertyDescriptor CONFLICT_STRATEGY = new PropertyDescriptor.Builder()
-        .name("Move Conflict Strategy")
+        .name("move-conflict-strategy")
+        .displayName("Move Conflict Strategy")
         .description("If Completion Strategy is set to Move File and a file already exists in the destination directory with the same name, this property specifies "
                 + "how that naming conflict should be resolved")
         .allowableValues(CONFLICT_RENAME, CONFLICT_REPLACE, CONFLICT_KEEP_INTACT, CONFLICT_FAIL)
         .defaultValue(CONFLICT_RENAME.getValue())
         .required(true)
         .build();
-    static final PropertyDescriptor FILE_NOT_FOUND_LOG_LEVEL = new PropertyDescriptor.Builder()
-        .name("Log level when file not found")
-        .description("Log level to use in case the file does not exist when the processor is triggered")
-        .allowableValues(LogLevel.values())
-        .defaultValue(LogLevel.ERROR.toString())
-        .required(true)
-        .build();
-    static final PropertyDescriptor PERM_DENIED_LOG_LEVEL = new PropertyDescriptor.Builder()
-        .name("Log level when permission denied")
-        .description("Log level to use in case user " + System.getProperty("user.name") + " does not have sufficient permissions to read the file")
-        .allowableValues(LogLevel.values())
-        .defaultValue(LogLevel.ERROR.toString())
-        .required(true)
-        .build();
 
     private final List<PropertyDescriptor> properties =
             ImmutableList.of(LINES_TO_SKIP, INCLUDE_HEADER, LINES_PER_SPLIT,
-                    FILENAME, COMPLETION_STRATEGY, MOVE_DESTINATION_DIR,
-                    FILE_NOT_FOUND_LOG_LEVEL, PERM_DENIED_LOG_LEVEL);
+                    FILENAME, COMPLETION_STRATEGY, MOVE_DESTINATION_DIR);
 
     private final Set<Relationship> relationships =
             ImmutableSet.of(REL_ORIGINAL, REL_SPLITS, REL_NOT_FOUND,
@@ -195,19 +183,17 @@ public class FetchFileSplits extends AbstractProcessor {
         }
 
         final String filename = context.getProperty(FILENAME).evaluateAttributeExpressions(flowFile).getValue();
-        final LogLevel levelFileNotFound = LogLevel.valueOf(context.getProperty(FILE_NOT_FOUND_LOG_LEVEL).getValue());
-        final LogLevel levelPermDenied = LogLevel.valueOf(context.getProperty(PERM_DENIED_LOG_LEVEL).getValue());
         final File file = new File(filename);
 
         // Verify that file system is reachable and file exists
         Path filePath = file.toPath();
         if (!Files.exists(filePath) && !Files.notExists(filePath)){ // see https://docs.oracle.com/javase/tutorial/essential/io/check.html for more details
-            getLogger().log(levelFileNotFound, "Could not fetch file {} from file system for {} because the existence of the file cannot be verified; routing to failure",
+            getLogger().debug("Could not fetch file {} from file system for {} because the existence of the file cannot be verified; routing to failure",
                     new Object[] {file, flowFile});
             session.transfer(session.penalize(flowFile), REL_FAILURE);
             return;
         } else if (!Files.exists(filePath)) {
-            getLogger().log(levelFileNotFound, "Could not fetch file {} from file system for {} because the file does not exist; routing to not.found", new Object[] {file, flowFile});
+            getLogger().debug("Could not fetch file {} from file system for {} because the file does not exist; routing to not.found", new Object[] {file, flowFile});
             session.getProvenanceReporter().route(flowFile, REL_NOT_FOUND);
             session.transfer(session.penalize(flowFile), REL_NOT_FOUND);
             return;
@@ -216,7 +202,7 @@ public class FetchFileSplits extends AbstractProcessor {
         // Verify read permission on file
         final String user = System.getProperty("user.name");
         if (!isReadable(file)) {
-            getLogger().log(levelPermDenied, "Could not fetch file {} from file system for {} due to user {} not having sufficient permissions to read the file; routing to permission.denied",
+            getLogger().debug("Could not fetch file {} from file system for {} due to user {} not having sufficient permissions to read the file; routing to permission.denied",
                     new Object[] {file, flowFile, user});
             session.getProvenanceReporter().route(flowFile, REL_PERMISSION_DENIED);
             session.transfer(session.penalize(flowFile), REL_PERMISSION_DENIED);
