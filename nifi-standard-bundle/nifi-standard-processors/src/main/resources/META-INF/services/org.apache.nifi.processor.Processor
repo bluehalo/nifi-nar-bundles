@@ -19,6 +19,7 @@ com.asymmetrik.nifi.processors.BatchWait
 com.asymmetrik.nifi.processors.CreateContent
 com.asymmetrik.nifi.processors.CreateJsonContent
 com.asymmetrik.nifi.processors.DelayProcessor
+com.asymmetrik.nifi.processors.FetchFileSplits
 com.asymmetrik.nifi.processors.GetWebpage
 com.asymmetrik.nifi.processors.IdentifyDuplicate
 com.asymmetrik.nifi.processors.influxdb.PutInfluxDB
