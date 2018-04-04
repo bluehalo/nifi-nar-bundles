@@ -30,6 +30,7 @@ com.asymmetrik.nifi.processors.mongo.QueryMongo
 com.asymmetrik.nifi.processors.mongo.RemoveMongo
 com.asymmetrik.nifi.processors.mongo.StoreInMongo
 com.asymmetrik.nifi.processors.mongo.UpdateMongo
+com.asymmetrik.nifi.processors.elasticsearch.PutElasticsearchHttp
 com.asymmetrik.nifi.processors.PutScp
 com.asymmetrik.nifi.processors.RouteOnBackPressure
 com.asymmetrik.nifi.processors.stats.CalculateBytesTransferred
