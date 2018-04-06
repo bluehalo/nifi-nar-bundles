@@ -58,6 +58,9 @@ import static org.apache.commons.lang3.StringUtils.trimToEmpty;
         description = "Adds the specified property name/value as a query parameter in the Elasticsearch URL used for processing")
 public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
 
+    private static final String DOC_AS_UPSERT = "doc_as_upsert";
+    private static final String SCRIPTED_UPSERT = "scripted_upsert";
+
     public static final Relationship REL_SUCCESS = new Relationship.Builder().name("success")
             .description("All FlowFiles that are written to Elasticsearch are routed to this relationship").build();
 
@@ -120,6 +123,27 @@ public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
             .expressionLanguageSupported(true)
             .build();
 
+    public static final PropertyDescriptor SCRIPT = new PropertyDescriptor.Builder()
+            .name("script")
+            .displayName("Script Object (JSON)")
+            .description("Optional script object to include in request. This will be added to the http body only when " +
+                    "Index Operation is \"update\" or \"upsert\".")
+            .required(false)
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.createAttributeExpressionLanguageValidator(
+                    AttributeExpression.ResultType.STRING, true))
+            .build();
+
+    public static final PropertyDescriptor UPSERT_OPTION = new PropertyDescriptor.Builder()
+            .name("upsert-option")
+            .displayName("Upsert Option")
+            .description("Optional upsert parameter that determines the structure of the http body only when " +
+                    "Index Operation is \"update\" or \"upsert\". Choices include \"" + DOC_AS_UPSERT + "\" and \"" + SCRIPTED_UPSERT + "\".")
+            .required(false)
+            .allowableValues(DOC_AS_UPSERT, SCRIPTED_UPSERT)
+            .build();
+
+
     private static final Set<Relationship> relationships;
     private static final List<PropertyDescriptor> propertyDescriptors;
 
@@ -143,6 +167,8 @@ public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
         descriptors.add(CHARSET);
         descriptors.add(BATCH_SIZE);
         descriptors.add(INDEX_OP);
+        descriptors.add(SCRIPT);
+        descriptors.add(UPSERT_OPTION);
 
         propertyDescriptors = Collections.unmodifiableList(descriptors);
     }
@@ -182,6 +208,18 @@ public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
                     break;
             }
         }
+
+        // If "scripted_upsert" is selected as the upsert option, then there must be a script present.
+        String upsertOption = validationContext.getProperty(UPSERT_OPTION).getValue();
+        String script = validationContext.getProperty(SCRIPT).getValue();
+        if (upsertOption != null && upsertOption.equals(SCRIPTED_UPSERT) && StringUtils.isBlank(script)) {
+            problems.add(new ValidationResult.Builder()
+                    .valid(false)
+                    .subject(UPSERT_OPTION.getDisplayName())
+                    .explanation(String.format("If %s is set to \"" + SCRIPTED_UPSERT + "\", a script must be provided.", UPSERT_OPTION.getDisplayName()))
+                    .build());
+        }
+
         return problems;
     }
 
@@ -245,6 +283,12 @@ public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
                 continue;
             }
 
+            String upsertOption = context.getProperty(UPSERT_OPTION).getValue();
+            String script = context.getProperty(SCRIPT).evaluateAttributeExpressions(file).getValue();
+            if (!StringUtils.isBlank(script)) {
+                script = script.replace("\r\n", " ").replace('\n', ' ').replace('\r', ' ');
+            }
+
             switch (indexOp.toLowerCase()) {
                 case "index":
                 case "update":
@@ -274,6 +318,7 @@ public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
             session.read(file, in -> {
                 json.append(IOUtils.toString(in, charset).replace("\r\n", " ").replace('\n', ' ').replace('\r', ' '));
             });
+
             if (indexOp.equalsIgnoreCase("index")) {
                 sb.append("{\"index\": { \"_index\": \"");
                 sb.append(index);
@@ -296,11 +341,30 @@ public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
                 sb.append("\", \"_id\": \"");
                 sb.append(id);
                 sb.append("\" }\n");
-//                sb.append("{\"doc\": ");
-                sb.append(json);
-//                sb.append(", \"doc_as_upsert\": ");
-//                sb.append(indexOp.equalsIgnoreCase("upsert"));
-//                sb.append(" }\n");
+
+                /*
+                    Index Operation update/upsert both support upsert options "scripted_upsert" and "doc_as_upsert".
+                    Whether the flowfile content is stored in "doc" or "upsert" depends
+                    on the Index Operation value.
+                 */
+                if (upsertOption != null && upsertOption.equals(DOC_AS_UPSERT)) {
+                    sb.append("{\"doc\": ");
+                    sb.append(json);
+                    sb.append(",\"" + DOC_AS_UPSERT + "\": true }");
+                } else if (upsertOption != null && upsertOption.equals(SCRIPTED_UPSERT)) {
+                    sb.append("{\"upsert\": {}");
+                    sb.append(",\"" + SCRIPTED_UPSERT + "\": true");
+                    sb.append(",\"script\": ");
+                    sb.append(script);
+                    sb.append("}");
+                } else if (indexOp.equalsIgnoreCase("upsert")) {
+                    sb.append("{\"upsert\": ");
+                    sb.append(json + "}");
+                } else {
+                    sb.append("{\"doc\": ");
+                    sb.append(json);
+                    sb.append(" }");
+                }
                 sb.append("\n");
             } else if (indexOp.equalsIgnoreCase("delete")) {
                 sb.append("{\"delete\": { \"_index\": \"");
@@ -312,6 +376,7 @@ public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
                 sb.append("\" }\n");
             }
         }
+
         if (!flowFilesToTransfer.isEmpty()) {
             RequestBody requestBody = RequestBody.create(MediaType.parse("application/json"), sb.toString());
             final Response getResponse;
