@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import com.asymmetrik.nifi.services.influxdb.InfluxDatabaseService;
 import com.google.common.collect.ImmutableList;
@@ -124,6 +125,16 @@ public class PutInfluxDB extends AbstractProcessor {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
+    static final PropertyDescriptor TIMESTAMP = new PropertyDescriptor.Builder()
+            .name("timestamp")
+            .displayName("Event Timestamp")
+            .description("A long value representing the number of milliseconds after EPOCH that" +
+                    " will be used as the entry's timestamp.")
+            .required(false)
+            .expressionLanguageSupported(true)
+            .addValidator(StandardValidators.LONG_VALIDATOR)
+            .build();
+
     static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
             .description("All FlowFiles that are successfully written to InfluxDB are routed to this relationship")
@@ -209,7 +220,10 @@ public class PutInfluxDB extends AbstractProcessor {
      * @return an optional of the data points
      */
     Optional<BatchPoints> collectPoints(ProcessContext context, List<FlowFile> flowFiles, String database) {
+        PropertyValue timeProp = context.getProperty(TIMESTAMP);
         BatchPoints batchPoints = BatchPoints.database(database).build();
+
+        long now = System.currentTimeMillis();
         for (FlowFile flowfile : flowFiles) {
             String tags = context.getProperty(TAGS).evaluateAttributeExpressions(flowfile).getValue();
             Map<String, String> tagsMap = KeyValueStringValidator.parse(tags);
@@ -223,12 +237,12 @@ public class PutInfluxDB extends AbstractProcessor {
                 continue;
             }
 
-            batchPoints.point(Point
+            Point.Builder pointBuilder = Point
                     .measurement(context.getProperty(MEASUREMENT).evaluateAttributeExpressions(flowfile).getValue())
                     .tag(tagsMap)
-                    .fields(getFields(flowfile, dynamicFieldValues))
-                    .build()
-            );
+                    .time(timeProp.isSet() ? context.getProperty(TIMESTAMP).evaluateAttributeExpressions(flowfile).asLong() : now, TimeUnit.MILLISECONDS)
+                    .fields(getFields(flowfile, dynamicFieldValues));
+            batchPoints.point(pointBuilder.build());
         }
         return batchPoints.getPoints().isEmpty() ? Optional.empty() : Optional.of(batchPoints);
     }
@@ -266,7 +280,7 @@ public class PutInfluxDB extends AbstractProcessor {
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
         return ImmutableList.of(INFLUX_DB_SERVICE, MEASUREMENT, DATABASE_NAME, TAGS, BATCH_SIZE,
-                RETENTION_POLICY, CONSISTENCY_LEVEL, LOG_LEVEL);
+                RETENTION_POLICY, CONSISTENCY_LEVEL, LOG_LEVEL, TIMESTAMP);
     }
 
     @Override
