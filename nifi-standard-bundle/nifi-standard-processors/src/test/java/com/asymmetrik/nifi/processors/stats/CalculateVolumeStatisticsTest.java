@@ -18,7 +18,6 @@ public class CalculateVolumeStatisticsTest {
     @Before
     public void setup() {
         runner = TestRunners.newTestRunner(CalculateVolumeStatistics.class);
-        runner.setProperty(CalculateVolumeStatistics.BUCKET_INTERVAL, "1 s");
         runner.setProperty(AbstractStatsProcessor.REPORTING_INTERVAL, "1 s");
         runner.setProperty(AbstractStatsProcessor.BATCH_SIZE, "100");
         runner.assertValid();
@@ -50,9 +49,7 @@ public class CalculateVolumeStatisticsTest {
         assertEquals(0, flowFile.getSize());
         assertStatAttributesPresent(flowFile);
         assertEquals(1, Integer.parseInt(flowFile.getAttribute("CalculateVolumeStatistics.count")));
-        assertEquals(1, Integer.parseInt(flowFile.getAttribute("CalculateVolumeStatistics.min")));
-        assertEquals(1, Integer.parseInt(flowFile.getAttribute("CalculateVolumeStatistics.max")));
-        assertEquals(1, Integer.parseInt(flowFile.getAttribute("CalculateVolumeStatistics.avg")));
+        assertEquals(1, Integer.parseInt(flowFile.getAttribute("CalculateVolumeStatistics.sum")));
     }
 
     @Test
@@ -110,11 +107,6 @@ public class CalculateVolumeStatisticsTest {
     private void assertStatAttributesPresent(MockFlowFile f) {
         assertNotNull(Integer.parseInt(f.getAttribute("CalculateVolumeStatistics.count")));
         assertNotNull(Integer.parseInt(f.getAttribute("CalculateVolumeStatistics.sum")));
-        assertNotNull(Integer.parseInt(f.getAttribute("CalculateVolumeStatistics.min")));
-        assertNotNull(Integer.parseInt(f.getAttribute("CalculateVolumeStatistics.max")));
-        assertNotNull(Integer.parseInt(f.getAttribute("CalculateVolumeStatistics.avg")));
-        assertNotNull(Double.parseDouble(f.getAttribute("CalculateVolumeStatistics.stdev")));
         assertNotNull(Long.parseLong(f.getAttribute("CalculateVolumeStatistics.timestamp")));
-        assertEquals("Count/Second", f.getAttribute("CalculateVolumeStatistics.units"));
     }
 }
