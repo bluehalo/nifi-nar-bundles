@@ -126,8 +126,8 @@ public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
     public static final PropertyDescriptor SCRIPT = new PropertyDescriptor.Builder()
             .name("script")
             .displayName("Script Object (JSON)")
-            .description("Optional script object to include in request. This will be added to the http body only when " +
-                    "Index Operation is \"update\" or \"upsert\".")
+            .description("Optional script object to include in request. This will be added to the http body as the JSON value " +
+                    "for field \"script\" only when Index Operation is \"update\" or \"upsert\".")
             .required(false)
             .expressionLanguageSupported(true)
             .addValidator(StandardValidators.createAttributeExpressionLanguageValidator(
@@ -342,28 +342,23 @@ public class PutElasticsearchHttp extends AbstractElasticsearchHttpProcessor {
                 sb.append(id);
                 sb.append("\" }\n");
 
-                /*
-                    Index Operation update/upsert both support upsert options "scripted_upsert" and "doc_as_upsert".
-                    Whether the flowfile content is stored in "doc" or "upsert" depends
-                    on the Index Operation value.
-                 */
-                if (upsertOption != null && upsertOption.equals(DOC_AS_UPSERT)) {
+                boolean isDocAsUpsert = (upsertOption != null && upsertOption.equals(DOC_AS_UPSERT));
+                if (StringUtils.isEmpty(script) || isDocAsUpsert) {
                     sb.append("{\"doc\": ");
                     sb.append(json);
-                    sb.append(",\"" + DOC_AS_UPSERT + "\": true }");
-                } else if (upsertOption != null && upsertOption.equals(SCRIPTED_UPSERT)) {
-                    sb.append("{\"upsert\": {}");
-                    sb.append(",\"" + SCRIPTED_UPSERT + "\": true");
-                    sb.append(",\"script\": ");
+                    sb.append(",\"" + DOC_AS_UPSERT + "\": " + isDocAsUpsert + "}");
+                }
+                else {
+                    sb.append("{\"script\": ");
                     sb.append(script);
+                    if (upsertOption == null || !upsertOption.equals(SCRIPTED_UPSERT)) {
+                        sb.append(",\"upsert\": ");
+                        sb.append(json);
+                    } else {
+                        sb.append(", \"upsert\": {}");
+                        sb.append(", \"scripted_upsert\": " + upsertOption.equals(SCRIPTED_UPSERT));
+                    }
                     sb.append("}");
-                } else if (indexOp.equalsIgnoreCase("upsert")) {
-                    sb.append("{\"upsert\": ");
-                    sb.append(json + "}");
-                } else {
-                    sb.append("{\"doc\": ");
-                    sb.append(json);
-                    sb.append(" }");
                 }
                 sb.append("\n");
             } else if (indexOp.equalsIgnoreCase("delete")) {
