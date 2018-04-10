@@ -40,6 +40,9 @@ public class PutInfluxDBIT {
     private InfluxDatabaseService influxDbService;
     private PropertyDescriptor dynamicProp;
 
+    private static final String DB = "TestPutInfluxDB";
+    private static final String MEASUREMENT = "m";
+
     @Before
     public void beforeEach() {
         influxDbService = new InfluxDbService();
@@ -58,8 +61,8 @@ public class PutInfluxDBIT {
     public void simplePropertyTests() throws InitializationException {
         TestRunner runner = TestRunners.newTestRunner(new PutInfluxDB());
         addInfluxService(runner);
-        runner.setProperty(PutInfluxDB.MEASUREMENT, "measurement");
-        runner.setProperty(PutInfluxDB.DATABASE_NAME, "db");
+        runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
+        runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_QUORUM);
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
         runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_NONE);
@@ -80,14 +83,35 @@ public class PutInfluxDBIT {
     public void testOptionalProperties() throws InitializationException {
         TestRunner runner = TestRunners.newTestRunner(new PutInfluxDB());
         addInfluxService(runner);
-        runner.setProperty(PutInfluxDB.MEASUREMENT, "measurement");
-        runner.setProperty(PutInfluxDB.DATABASE_NAME, "db");
+        runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
+        runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ALL);
         runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_BASIC);
         runner.assertValid();
 
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
         runner.assertValid();
+    }
+
+    @Test
+    public void testOptionalTimestampProperties() throws InitializationException {
+        PutInfluxDB putInfluxDB = new PutInfluxDB();
+        TestRunner runner = TestRunners.newTestRunner(putInfluxDB);
+        addInfluxService(runner);
+        runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
+        runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
+        runner.setProperty(PutInfluxDB.TIMESTAMP, "123456789012");
+        PropertyDescriptor i1 = new PropertyDescriptor.Builder().name("field").description("asdf").dynamic(true).build();
+        runner.setProperty(i1, "1.1");
+
+        runner.assertValid();
+
+        ProcessSession session = runner.getProcessSessionFactory().createSession();
+        FlowFile ff = session.create();
+        runner.enqueue(ff);
+        runner.run();
+        runner.assertTransferCount(PutInfluxDB.REL_FAILURE, 0);
+        runner.assertTransferCount(PutInfluxDB.REL_SUCCESS, 1);
     }
 
     @Test
@@ -100,8 +124,8 @@ public class PutInfluxDBIT {
 
         TestRunner runner = TestRunners.newTestRunner(putInfluxDB);
         addInfluxService(runner);
-        runner.setProperty(PutInfluxDB.MEASUREMENT, "measurement");
-        runner.setProperty(PutInfluxDB.DATABASE_NAME, "db");
+        runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
+        runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ANY);
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
         runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_HEADERS);
@@ -120,8 +144,8 @@ public class PutInfluxDBIT {
     public void simpleInvalidFieldValueTest() throws InitializationException {
         TestRunner runner = TestRunners.newTestRunner(new PutInfluxDB());
         addInfluxService(runner);
-        runner.setProperty(PutInfluxDB.MEASUREMENT, "measurement");
-        runner.setProperty(PutInfluxDB.DATABASE_NAME, "db");
+        runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
+        runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ONE);
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
         runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_FULL);
