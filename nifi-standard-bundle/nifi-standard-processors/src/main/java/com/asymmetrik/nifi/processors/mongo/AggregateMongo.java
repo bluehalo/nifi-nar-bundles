@@ -52,7 +52,7 @@ public class AggregateMongo extends AbstractMongoProcessor {
             .build();
 
     private List<PropertyDescriptor> props = Arrays.asList(MongoProps.MONGO_SERVICE, MongoProps.DATABASE,
-            MongoProps.COLLECTION, MongoProps.BATCH_SIZE, MongoProps.WRITE_CONCERN,
+            MongoProps.COLLECTION, MongoProps.WRITE_CONCERN,
             AGGREGATION_PIPELINE, OUTPUT_COLLECTION);
 
     protected static final Relationship REL_ORIGINAL = new Relationship.Builder()
