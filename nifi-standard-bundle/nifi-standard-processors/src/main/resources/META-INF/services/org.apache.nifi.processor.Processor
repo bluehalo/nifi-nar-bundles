@@ -25,6 +25,7 @@ com.asymmetrik.nifi.processors.IdentifyDuplicate
 com.asymmetrik.nifi.processors.influxdb.PutInfluxDB
 com.asymmetrik.nifi.processors.InspectZipContents
 com.asymmetrik.nifi.processors.Md5HashAttributes
+com.asymmetrik.nifi.processors.mongo.AggregateMongo
 com.asymmetrik.nifi.processors.mongo.CreateObjectId
 com.asymmetrik.nifi.processors.mongo.QueryMongo
 com.asymmetrik.nifi.processors.mongo.RemoveMongo
