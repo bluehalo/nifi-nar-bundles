@@ -33,6 +33,7 @@ com.asymmetrik.nifi.processors.mongo.UpdateMongo
 com.asymmetrik.nifi.processors.elasticsearch.PutElasticsearchHttp
 com.asymmetrik.nifi.processors.PutScp
 com.asymmetrik.nifi.processors.RouteOnBackPressure
+com.asymmetrik.nifi.processors.stats.CalculateAttributeMoments
 com.asymmetrik.nifi.processors.stats.CalculateBytesTransferred
 com.asymmetrik.nifi.processors.stats.CalculateLatencyStatistics
 com.asymmetrik.nifi.processors.stats.CalculateVolumeStatistics
