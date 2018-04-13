@@ -7,6 +7,7 @@ import com.asymmetrik.nifi.processors.util.MomentAggregator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.behavior.TriggerWhenEmpty;
@@ -67,6 +68,11 @@ public class CalculateAttributeMoments extends AbstractStatsProcessor {
     @Override
     protected void updateStats(FlowFile flowFile, MomentAggregator aggregator, long currentTimestamp) {
         String value = flowFile.getAttribute(attrKey);
+        if (StringUtils.isBlank(value)) {
+            getLogger().warn("No value found for attribute key: ", new Object[] {attrKey});
+            return;
+        }
+
         try {
             aggregator.addValue(Double.parseDouble(value));
         } catch (Exception e) {

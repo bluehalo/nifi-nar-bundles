@@ -52,6 +52,37 @@ public class CalculateAttributeMomentsTest {
     }
 
     @Test
+    public void testMissingAttrValue() {
+        String data = "a";
+        int n = 20;
+        for (int i = 0; i < n; i++) {
+            Map<String, String> attributes = new HashMap<>();
+            attributes.put(FLOWID, "foobar");
+            runner.enqueue(data, attributes);
+        }
+        runner.run(20);
+
+        // all 20 originals emitted, but no statistics were generated
+        runner.assertTransferCount(AbstractStatsProcessor.REL_STATS, 0);
+    }
+
+    @Test
+    public void testNonnumericAttrValue() {
+        String data = "a";
+        int n = 20;
+        for (int i = 0; i < n; i++) {
+            Map<String, String> attributes = new HashMap<>();
+            attributes.put(FLOWID, "foobar");
+            attributes.put("x", "nan");
+            runner.enqueue(data, attributes);
+        }
+        runner.run(20);
+
+        // all 20 originals emitted, but no statistics were generated
+        runner.assertTransferCount(AbstractStatsProcessor.REL_STATS, 0);
+    }
+
+    @Test
     public void testMultipleFlowId() {
         runner.setProperty(CalculateAttributeMoments.BATCH_SIZE, "40");
         String data = "a";
