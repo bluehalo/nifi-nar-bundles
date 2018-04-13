@@ -43,12 +43,42 @@ public class CalculateAttributeMomentsTest {
         runner.assertTransferCount(AbstractStatsProcessor.REL_STATS, 1);
         MockFlowFile flowFile = runner.getFlowFilesForRelationship(AbstractStatsProcessor.REL_STATS).get(0);
 
-        int count = n;
-        assertEquals(count, Integer.parseInt(flowFile.getAttribute("CalculateAttributeMoments.count")));
+        assertEquals(n, Integer.parseInt(flowFile.getAttribute("CalculateAttributeMoments.count")));
         assertEquals(190.0, Double.parseDouble(flowFile.getAttribute("CalculateAttributeMoments.sum")), 1e-6);
         assertEquals(0.0, Double.parseDouble(flowFile.getAttribute("CalculateAttributeMoments.min")), 1e-6);
         assertEquals(19.0, Double.parseDouble(flowFile.getAttribute("CalculateAttributeMoments.max")), 1e-6);
         assertEquals(9.5, Double.parseDouble(flowFile.getAttribute("CalculateAttributeMoments.avg")), 1e-6);
+    }
+
+    @Test
+    public void testMissingAttrValue() {
+        String data = "a";
+        int n = 20;
+        for (int i = 0; i < n; i++) {
+            Map<String, String> attributes = new HashMap<>();
+            attributes.put(FLOWID, "foobar");
+            runner.enqueue(data, attributes);
+        }
+        runner.run(20);
+
+        // all 20 originals emitted, but no statistics were generated
+        runner.assertTransferCount(AbstractStatsProcessor.REL_STATS, 0);
+    }
+
+    @Test
+    public void testNonnumericAttrValue() {
+        String data = "a";
+        int n = 20;
+        for (int i = 0; i < n; i++) {
+            Map<String, String> attributes = new HashMap<>();
+            attributes.put(FLOWID, "foobar");
+            attributes.put("x", "nan");
+            runner.enqueue(data, attributes);
+        }
+        runner.run(20);
+
+        // all 20 originals emitted, but no statistics were generated
+        runner.assertTransferCount(AbstractStatsProcessor.REL_STATS, 0);
     }
 
     @Test
