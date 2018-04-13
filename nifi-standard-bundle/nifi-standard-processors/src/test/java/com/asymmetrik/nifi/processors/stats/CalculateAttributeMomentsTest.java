@@ -43,8 +43,7 @@ public class CalculateAttributeMomentsTest {
         runner.assertTransferCount(AbstractStatsProcessor.REL_STATS, 1);
         MockFlowFile flowFile = runner.getFlowFilesForRelationship(AbstractStatsProcessor.REL_STATS).get(0);
 
-        int count = n;
-        assertEquals(count, Integer.parseInt(flowFile.getAttribute("CalculateAttributeMoments.count")));
+        assertEquals(n, Integer.parseInt(flowFile.getAttribute("CalculateAttributeMoments.count")));
         assertEquals(190.0, Double.parseDouble(flowFile.getAttribute("CalculateAttributeMoments.sum")), 1e-6);
         assertEquals(0.0, Double.parseDouble(flowFile.getAttribute("CalculateAttributeMoments.min")), 1e-6);
         assertEquals(19.0, Double.parseDouble(flowFile.getAttribute("CalculateAttributeMoments.max")), 1e-6);
