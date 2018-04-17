@@ -39,6 +39,7 @@
         <commons-lang3.version>3.5</commons-lang3.version>
         <gson.version>2.3.1</gson.version>
         <guava.version>18.0</guava.version>
+        <humble.version>0.2.1</humble.version>
         <influxdb-java.version>2.7</influxdb-java.version>
         <jackson-core.version>2.6.1</jackson-core.version>
         <jackson-databind.version>2.6.1</jackson-databind.version>
@@ -226,6 +227,11 @@
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>${guava.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.humble</groupId>
+                <artifactId>humble-video-all</artifactId>
+                <version>${humble.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.influxdb</groupId>

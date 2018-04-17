@@ -38,3 +38,4 @@ com.asymmetrik.nifi.processors.stats.CalculateAttributeMoments
 com.asymmetrik.nifi.processors.stats.CalculateBytesTransferred
 com.asymmetrik.nifi.processors.stats.CalculateLatencyStatistics
 com.asymmetrik.nifi.processors.stats.CalculateVolumeStatistics
+com.asymmetrik.nifi.processors.video.VideoToFrames

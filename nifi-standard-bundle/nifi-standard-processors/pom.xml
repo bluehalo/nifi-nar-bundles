@@ -75,6 +75,10 @@
             <artifactId>jsch</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.humble</groupId>
+            <artifactId>humble-video-all</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.jcraft</groupId>
             <artifactId>jzlib</artifactId>
             <scope>runtime</scope>
