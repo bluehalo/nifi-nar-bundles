@@ -147,9 +147,6 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
                     if (mapBeanName != null) {
                         AttributeList stats = connection.getAttributes(mapBeanName, jmxBeanAttributes);
                         publish(stats, url, mapName);
-                    } else {
-                        getLogger().info("Unable to find bean name where URL={}:{}, cluster name={}, map name={}",
-                                new Object[]{ url.getHost(), url.getPort(), clusterName, mapName });
                     }
                 } catch (Exception e) {
                     getLogger().error(e.getMessage(), e);
