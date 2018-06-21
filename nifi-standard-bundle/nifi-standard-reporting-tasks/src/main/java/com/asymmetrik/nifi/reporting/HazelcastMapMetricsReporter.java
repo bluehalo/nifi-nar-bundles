@@ -142,19 +142,19 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
     @Override
     public void onTrigger(ReportingContext context) {
         for (JMXServiceURL url : jmxServiceUrls) {
-            for (String mapName : mapNames) {
-                try {
-                    JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
-                    MBeanServerConnection connection = jmxConnector.getMBeanServerConnection();
+            try {
+                JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
+                MBeanServerConnection connection = jmxConnector.getMBeanServerConnection();
 
+                for (String mapName : mapNames) {
                     ObjectName mapBeanName = findBeanName(connection, mapName, clusterName);
                     if (mapBeanName != null) {
                         AttributeList stats = connection.getAttributes(mapBeanName, jmxBeanAttributes);
                         publish(stats, url, mapName);
                     }
-                } catch (Exception e) {
-                    getLogger().error(e.getMessage(), e);
                 }
+            } catch (Exception e) {
+                getLogger().error(e.getMessage(), e);
             }
         }
     }
