@@ -50,6 +50,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .displayName("Database")
             .description("The database into which the metrics will be stored.")
             .required(true)
+            .expressionLanguageSupported(true)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
@@ -58,6 +59,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .displayName("Hazelcast Members")
             .description("Specifies a CSV of host:port of hazelcast members supporting jmx agents. ie '127.0.0.1:9999, 127.0.0.2:9998'")
             .required(true)
+            .expressionLanguageSupported(true)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
@@ -67,6 +69,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .description("Specifies the name of the cluster group name to connect to")
             .defaultValue("dev")
             .required(true)
+            .expressionLanguageSupported(true)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
@@ -75,6 +78,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .displayName("Map Names")
             .description("Specifies CSV of map names to retrieve stats of")
             .required(true)
+            .expressionLanguageSupported(true)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
@@ -113,21 +117,21 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
         Joiner joiner = Joiner.on("");
 
         this.jmxServiceUrls = new ArrayList<>();
-        for (String hostPort : splitter.split(context.getProperty(CSV_HOSTS).getValue())) {
+        for (String hostPort : splitter.split(context.getProperty(CSV_HOSTS).evaluateAttributeExpressions().getValue())) {
             jmxServiceUrls.add(new JMXServiceURL(
                     joiner.join("service:jmx:rmi://", hostPort, "/jndi/rmi://", hostPort, "/jmxrmi")));
         }
 
-        this.clusterName = context.getProperty(CLUSTER_NAME).getValue().trim();
+        this.clusterName = context.getProperty(CLUSTER_NAME).evaluateAttributeExpressions().getValue().trim();
 
         this.mapNames = Iterables.toArray(splitter.split(
-                context.getProperty(MAP_NAMES).getValue()), String.class);
+                context.getProperty(MAP_NAMES).evaluateAttributeExpressions().getValue()), String.class);
 
         this.jmxBeanAttributes = context.getProperty(BEAN_ATTRIBUTES).isSet()
                 ? Iterables.toArray(splitter.split(context.getProperty(BEAN_ATTRIBUTES).getValue()), String.class)
                 : defaultAttributes.toArray(new String[defaultAttributes.size()]);
 
-        this.database = context.getProperty(DATABASE).getValue();
+        this.database = context.getProperty(DATABASE).evaluateAttributeExpressions().getValue();
         this.influxDB = context.getProperty(INFLUXDB_SERVICE)
                 .asControllerService(InfluxDatabaseService.class)
                 .getInfluxDb();
@@ -138,19 +142,19 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
     @Override
     public void onTrigger(ReportingContext context) {
         for (JMXServiceURL url : jmxServiceUrls) {
-            for (String mapName : mapNames) {
-                try {
-                    JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
-                    MBeanServerConnection connection = jmxConnector.getMBeanServerConnection();
+            try {
+                JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
+                MBeanServerConnection connection = jmxConnector.getMBeanServerConnection();
 
+                for (String mapName : mapNames) {
                     ObjectName mapBeanName = findBeanName(connection, mapName, clusterName);
                     if (mapBeanName != null) {
                         AttributeList stats = connection.getAttributes(mapBeanName, jmxBeanAttributes);
                         publish(stats, url, mapName);
                     }
-                } catch (Exception e) {
-                    getLogger().error(e.getMessage(), e);
                 }
+            } catch (Exception e) {
+                getLogger().error(e.getMessage(), e);
             }
         }
     }
