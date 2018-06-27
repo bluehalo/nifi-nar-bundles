@@ -1,6 +1,6 @@
 stages:
   - build
-  - release
+  - test
 
 image: maven:latest
 
@@ -24,3 +24,15 @@ build:
   artifacts:
     paths:
       - "nifi-assembly/target/*.tar.gz"
+
+pages:
+  stage: test
+  script:
+    - mkdir .public
+    - cp -r nifi-standard-bundle/nifi-standard-processors/target/site/jacoco/* .public
+    - mv .public public
+  artifacts:
+    paths:
+    - public
+#  only:
+#    - master
