@@ -24,9 +24,12 @@ build:
   artifacts:
     paths:
       - "nifi-assembly/target/*.tar.gz"
+      - "nifi-standard-bundle/nifi-standard-processors/target/site/jacoco/*"
 
 pages:
   stage: test
+  dependencies:
+    - build
   script:
     - mkdir .public
     - cp -r nifi-standard-bundle/nifi-standard-processors/target/site/jacoco/* .public
