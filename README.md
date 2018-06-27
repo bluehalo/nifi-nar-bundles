@@ -1,3 +1,6 @@
+# Code coverage
+[Coverage](https://asymmetrik.gitlab.io/nifi-nar-bundles)
+
 # nifi-nar-bundles
 
 This project contains assorted [Apache NiFi](http://nifi.apache.org/) components.
