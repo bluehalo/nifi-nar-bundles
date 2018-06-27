@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +24,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
@@ -76,8 +78,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
     static final PropertyDescriptor MAP_NAMES = new PropertyDescriptor.Builder()
             .name("map.names")
             .displayName("Map Names")
-            .description("Specifies CSV of map names to retrieve stats of")
-            .required(true)
+            .description("Specifies CSV of map names to retrieve stats of. If nothing is provided, all maps will be retrieved")
             .expressionLanguageSupported(true)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
@@ -104,7 +105,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
     // the cluster name (usually dev)
     private String clusterName;
     // array of map names to retrieve stats from
-    private String[] mapNames;
+    private Set<String> mapNames;
     // array of map stat names to retrieve
     private String[] jmxBeanAttributes;
 
@@ -124,8 +125,9 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
 
         this.clusterName = context.getProperty(CLUSTER_NAME).evaluateAttributeExpressions().getValue().trim();
 
-        this.mapNames = Iterables.toArray(splitter.split(
-                context.getProperty(MAP_NAMES).evaluateAttributeExpressions().getValue()), String.class);
+        this.mapNames = context.getProperty(BEAN_ATTRIBUTES).isSet()
+                ? Sets.newHashSet(splitter.split(context.getProperty(MAP_NAMES).evaluateAttributeExpressions().getValue()))
+                : new HashSet<>();
 
         this.jmxBeanAttributes = context.getProperty(BEAN_ATTRIBUTES).isSet()
                 ? Iterables.toArray(splitter.split(context.getProperty(BEAN_ATTRIBUTES).getValue()), String.class)
@@ -146,12 +148,9 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
                 JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
                 MBeanServerConnection connection = jmxConnector.getMBeanServerConnection();
 
-                for (String mapName : mapNames) {
-                    ObjectName mapBeanName = findBeanName(connection, mapName, clusterName);
-                    if (mapBeanName != null) {
-                        AttributeList stats = connection.getAttributes(mapBeanName, jmxBeanAttributes);
-                        publish(stats, url, mapName);
-                    }
+                for (ObjectName mapBeanName : findBeanNames(connection, mapNames, clusterName)) {
+                    AttributeList stats = connection.getAttributes(mapBeanName, jmxBeanAttributes);
+                    publish(stats, url, mapBeanName.getKeyProperty("name"));
                 }
             } catch (Exception e) {
                 getLogger().error(e.getMessage(), e);
@@ -159,24 +158,29 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
         }
     }
 
-    private ObjectName findBeanName(MBeanServerConnection connection, String mapName, String clusterName) throws IOException {
+    private List<ObjectName> findBeanNames(MBeanServerConnection connection, Set<String> mapNames, String clusterName) throws IOException {
+        List<ObjectName> output = new ArrayList<>();
+
         Set<ObjectName> names = connection.queryNames(null, null);
         for (ObjectName name : names) {
-            if (isValid(name, mapName, clusterName)) {
-                return name;
+            if (isValid(name, mapNames, clusterName)) {
+                output.add(name);
             }
         }
 
-        return null;
+        return output;
     }
 
-    private boolean isValid(ObjectName name, String mapName, String clusterName) {
+    private boolean isValid(ObjectName name, Set<String> mapNames, String clusterName) {
         if (!"com.hazelcast".equals(name.getDomain())) {
             return false;
         }
-        if (!mapName.equals(name.getKeyProperty("name"))) {
+
+        String propertyName = name.getKeyProperty("name");
+        if (!mapNames.isEmpty() && !mapNames.contains(propertyName)) {
             return false;
         }
+
         if (!"IMap".equals(name.getKeyProperty("type"))) {
             return false;
         }
