@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.ConfigurationContext;
@@ -125,7 +126,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
 
         this.clusterName = context.getProperty(CLUSTER_NAME).evaluateAttributeExpressions().getValue().trim();
 
-        this.mapNames = context.getProperty(BEAN_ATTRIBUTES).isSet()
+        this.mapNames = context.getProperty(MAP_NAMES).isSet()
                 ? Sets.newHashSet(splitter.split(context.getProperty(MAP_NAMES).evaluateAttributeExpressions().getValue()))
                 : new HashSet<>();
 
@@ -171,7 +172,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
         return output;
     }
 
-    private boolean isValid(ObjectName name, Set<String> mapNames, String clusterName) {
+    boolean isValid(ObjectName name, Set<String> mapNames, String clusterName) {
         if (!"com.hazelcast".equals(name.getDomain())) {
             return false;
         }
@@ -181,14 +182,16 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             return false;
         }
 
-        if (!"IMap".equals(name.getKeyProperty("type"))) {
+        String typeProperty = name.getKeyProperty("type");
+        if (StringUtils.isBlank(typeProperty) || !"IMap".equals(name.getKeyProperty("type"))) {
             return false;
         }
 
         // we do a contains check here because the instance name appear to be decorated with
         // additional prefix where the numerical portion may or may not be random: ie
         // _hzInstance_1_<clusterName>
-        if (!name.getKeyProperty("instance").contains(clusterName)) {
+        String instanceProperty = name.getKeyProperty("instance");
+        if (StringUtils.isBlank(instanceProperty) || !instanceProperty.contains(clusterName)) {
             return false;
         }
 
