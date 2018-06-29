@@ -397,6 +397,9 @@
                         <artifactId>jacoco-maven-plugin</artifactId>
                         <version>0.8.1</version>
                         <configuration>
+                            <excludes>
+                                <exclude>com.asymmetrik.nifi.models.**</exclude>
+                            </excludes>
                         </configuration>
                         <executions>
                             <execution>
