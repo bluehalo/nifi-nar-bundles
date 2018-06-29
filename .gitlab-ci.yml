@@ -1,0 +1,41 @@
+stages:
+  - build
+  - test
+
+image: maven:latest
+
+variables:
+  MAVEN_CLI_OPTS: "-B -T 1C"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+services:
+  - mongo:3.4.7
+
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS clean verify -Pcoverage,gitlab
+    - cat nifi-standard-bundle/nifi-standard-processors/target/site/jacoco/index.html
+  artifacts:
+    paths:
+      - "nifi-assembly/target/*.tar.gz"
+      - "nifi-standard-bundle/nifi-standard-processors/target/site/jacoco/*"
+
+pages:
+  stage: test
+  dependencies:
+    - build
+  script:
+    - mkdir .public
+    - cp -r nifi-standard-bundle/nifi-standard-processors/target/site/jacoco/* .public
+    - mv .public public
+  artifacts:
+    paths:
+    - public
+#  only:
+#    - master

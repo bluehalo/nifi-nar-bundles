@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,7 +24,9 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.ConfigurationContext;
@@ -39,7 +42,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
     private static final PropertyDescriptor INFLUXDB_SERVICE = new PropertyDescriptor.Builder()
             .name("InfluxDB Service")
             .displayName("InfluxDB Service")
-            .description("A connection pool to the InfluxDB.")
+            .description("The service holding the connection pool to the InfluxDB.")
             .required(true)
             .identifiesControllerService(InfluxDatabaseService.class)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
@@ -47,14 +50,23 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
 
     private static final PropertyDescriptor DATABASE = new PropertyDescriptor.Builder()
             .name("database")
-            .displayName("Database")
-            .description("The database into which the metrics will be stored.")
+            .displayName("InfluxDB Database Name")
+            .description("The InfluxDB database into which the metrics will be stored.")
             .required(true)
             .expressionLanguageSupported(true)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor CSV_HOSTS = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor MEASUREMENT = new PropertyDescriptor.Builder()
+            .name("influx.measurement")
+            .displayName("InfluxDB Measurement Name")
+            .description("The InfluxDB measurement name into which the metrics will be stored.")
+            .required(true)
+            .defaultValue("hazelcast-map-stats")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
+    private static final PropertyDescriptor CSV_HOSTS = new PropertyDescriptor.Builder()
             .name("host.ports")
             .displayName("Hazelcast Members")
             .description("Specifies a CSV of host:port of hazelcast members supporting jmx agents. ie '127.0.0.1:9999, 127.0.0.2:9998'")
@@ -63,9 +75,9 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor CLUSTER_NAME = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor CLUSTER_NAME = new PropertyDescriptor.Builder()
             .name("cluster.name")
-            .displayName("Cluster Group Name")
+            .displayName("Hazelcast Cluster Group Name")
             .description("Specifies the name of the cluster group name to connect to")
             .defaultValue("dev")
             .required(true)
@@ -73,19 +85,18 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor MAP_NAMES = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor MAP_NAMES = new PropertyDescriptor.Builder()
             .name("map.names")
-            .displayName("Map Names")
-            .description("Specifies CSV of map names to retrieve stats of")
-            .required(true)
+            .displayName("Hazelcast Map Names")
+            .description("Specifies CSV of map names to retrieve stats of. If nothing is provided, all maps will be retrieved")
             .expressionLanguageSupported(true)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
     // https://github.com/hazelcast/hazelcast/blob/master/hazelcast/src/main/java/com/hazelcast/internal/jmx/MapMBean.java
-    static final PropertyDescriptor BEAN_ATTRIBUTES = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor BEAN_ATTRIBUTES = new PropertyDescriptor.Builder()
             .name("attribute.names")
-            .displayName("Bean Attributes for Map")
+            .displayName("JMX Bean Attributes for Map")
             .description("Specifies CSV of attributes to retrieve from the specified bean. If nothing is provided, all attribute values will be retrieved")
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
@@ -104,12 +115,13 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
     // the cluster name (usually dev)
     private String clusterName;
     // array of map names to retrieve stats from
-    private String[] mapNames;
+    private Set<String> mapNames;
     // array of map stat names to retrieve
     private String[] jmxBeanAttributes;
 
-    private String database;
     private InfluxDB influxDB;
+    private String database;
+    private String measurement;
 
     @OnScheduled
     public void startup(ConfigurationContext context) throws IOException {
@@ -124,17 +136,19 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
 
         this.clusterName = context.getProperty(CLUSTER_NAME).evaluateAttributeExpressions().getValue().trim();
 
-        this.mapNames = Iterables.toArray(splitter.split(
-                context.getProperty(MAP_NAMES).evaluateAttributeExpressions().getValue()), String.class);
+        this.mapNames = context.getProperty(MAP_NAMES).isSet()
+                ? Sets.newHashSet(splitter.split(context.getProperty(MAP_NAMES).evaluateAttributeExpressions().getValue()))
+                : new HashSet<>();
 
         this.jmxBeanAttributes = context.getProperty(BEAN_ATTRIBUTES).isSet()
                 ? Iterables.toArray(splitter.split(context.getProperty(BEAN_ATTRIBUTES).getValue()), String.class)
                 : defaultAttributes.toArray(new String[defaultAttributes.size()]);
 
-        this.database = context.getProperty(DATABASE).evaluateAttributeExpressions().getValue();
         this.influxDB = context.getProperty(INFLUXDB_SERVICE)
                 .asControllerService(InfluxDatabaseService.class)
                 .getInfluxDb();
+        this.database = context.getProperty(DATABASE).evaluateAttributeExpressions().getValue();
+        this.measurement = context.getProperty(MEASUREMENT).getValue();
 
         this.influxDB.disableBatch();
     }
@@ -146,12 +160,9 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
                 JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
                 MBeanServerConnection connection = jmxConnector.getMBeanServerConnection();
 
-                for (String mapName : mapNames) {
-                    ObjectName mapBeanName = findBeanName(connection, mapName, clusterName);
-                    if (mapBeanName != null) {
-                        AttributeList stats = connection.getAttributes(mapBeanName, jmxBeanAttributes);
-                        publish(stats, url, mapName);
-                    }
+                for (ObjectName mapBeanName : findBeanNames(connection, mapNames, clusterName)) {
+                    AttributeList stats = connection.getAttributes(mapBeanName, jmxBeanAttributes);
+                    publish(stats, url, mapBeanName.getKeyProperty("name"));
                 }
             } catch (Exception e) {
                 getLogger().error(e.getMessage(), e);
@@ -159,32 +170,39 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
         }
     }
 
-    private ObjectName findBeanName(MBeanServerConnection connection, String mapName, String clusterName) throws IOException {
+    private List<ObjectName> findBeanNames(MBeanServerConnection connection, Set<String> mapNames, String clusterName) throws IOException {
+        List<ObjectName> output = new ArrayList<>();
+
         Set<ObjectName> names = connection.queryNames(null, null);
         for (ObjectName name : names) {
-            if (isValid(name, mapName, clusterName)) {
-                return name;
+            if (isValid(name, mapNames, clusterName)) {
+                output.add(name);
             }
         }
 
-        return null;
+        return output;
     }
 
-    private boolean isValid(ObjectName name, String mapName, String clusterName) {
+    boolean isValid(ObjectName name, Set<String> mapNames, String clusterName) {
         if (!"com.hazelcast".equals(name.getDomain())) {
             return false;
         }
-        if (!mapName.equals(name.getKeyProperty("name"))) {
+
+        String propertyName = name.getKeyProperty("name");
+        if (!mapNames.isEmpty() && !mapNames.contains(propertyName)) {
             return false;
         }
-        if (!"IMap".equals(name.getKeyProperty("type"))) {
+
+        String typeProperty = name.getKeyProperty("type");
+        if (StringUtils.isBlank(typeProperty) || !"IMap".equals(name.getKeyProperty("type"))) {
             return false;
         }
 
         // we do a contains check here because the instance name appear to be decorated with
         // additional prefix where the numerical portion may or may not be random: ie
         // _hzInstance_1_<clusterName>
-        if (!name.getKeyProperty("instance").contains(clusterName)) {
+        String instanceProperty = name.getKeyProperty("instance");
+        if (StringUtils.isBlank(instanceProperty) || !instanceProperty.contains(clusterName)) {
             return false;
         }
 
@@ -197,7 +215,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
                 .tag("host", url.getHost())
                 .tag("port", String.valueOf(url.getPort()))
                 .tag("cluster", clusterName)
-                .tag("mapName", mapName);
+                .tag("mapName", StringUtils.isBlank(mapName) ? "< ---- UNNAMED MAP ---- >" : mapName);
 
         Map<String, Object> fields = new HashMap<>();
         for (Object stat : stats) {
@@ -205,7 +223,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             fields.put(attribute.getName(), attribute.getValue());
         }
 
-        builder.point(Point.measurement("hazelcast-map-stats")
+        builder.point(Point.measurement(measurement)
                 .time(System.currentTimeMillis(), TimeUnit.MILLISECONDS)
                 .fields(fields)
                 .build()
@@ -216,7 +234,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
 
     @Override
     public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(INFLUXDB_SERVICE, DATABASE, CSV_HOSTS, CLUSTER_NAME, MAP_NAMES,
+        return ImmutableList.of(INFLUXDB_SERVICE, DATABASE, MEASUREMENT, CSV_HOSTS, CLUSTER_NAME, MAP_NAMES,
                 BEAN_ATTRIBUTES);
     }
 }
