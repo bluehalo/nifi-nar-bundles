@@ -156,8 +156,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
     @Override
     public void onTrigger(ReportingContext context) {
         for (JMXServiceURL url : jmxServiceUrls) {
-            try {
-                JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null);
+            try (JMXConnector jmxConnector = JMXConnectorFactory.connect(url, null)) {
                 MBeanServerConnection connection = jmxConnector.getMBeanServerConnection();
 
                 for (ObjectName mapBeanName : findBeanNames(connection, mapNames, clusterName)) {
