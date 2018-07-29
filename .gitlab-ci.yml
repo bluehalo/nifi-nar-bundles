@@ -20,11 +20,11 @@ build:
   stage: build
   script:
     - mvn $MAVEN_CLI_OPTS clean verify -Pcoverage,gitlab
-    - cat nifi-standard-bundle/nifi-standard-processors/target/site/jacoco/index.html
+    - cat nifi-asymmetrik-standard-bundle/nifi-asymmetrik-standard-processors/target/site/jacoco/index.html
   artifacts:
     paths:
-      - "nifi-assembly/target/*.tar.gz"
-      - "nifi-standard-bundle/nifi-standard-processors/target/site/jacoco/*"
+      - "nifi-asymmetrik-assembly/target/*.tar.gz"
+      - "nifi-asymmetrik-standard-bundle/nifi-asymmetrik-standard-processors/target/site/jacoco/*"
 
 pages:
   stage: test
@@ -32,7 +32,7 @@ pages:
     - build
   script:
     - mkdir .public
-    - cp -r nifi-standard-bundle/nifi-standard-processors/target/site/jacoco/* .public
+    - cp -r nifi-asymmetrik-standard-bundle/nifi-asymmetrik-standard-processors/target/site/jacoco/* .public
     - mv .public public
   artifacts:
     paths:
