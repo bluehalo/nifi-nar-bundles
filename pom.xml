@@ -17,14 +17,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.asymmetrik.nifi</groupId>
-    <artifactId>nifi-nar-bundles</artifactId>
-    <version>0.6.3</version>
+    <artifactId>nifi-asymmetrik-nar-bundles</artifactId>
+    <version>0.6.4</version>
     <packaging>pom</packaging>
 
     <modules>
-        <module>nifi-standard-bundle</module>
-        <module>nifi-standard-services</module>
-        <module>nifi-assembly</module>
+        <module>nifi-asymmetrik-standard-bundle</module>
+        <module>nifi-asymmetrik-standard-services</module>
+        <module>nifi-asymmetrik-assembly</module>
     </modules>
 
     <properties>
@@ -33,7 +33,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <nifi.version>1.6.0</nifi.version>
+        <nifi.version>1.7.1</nifi.version>
 
         <commons-collections.version>3.2.1</commons-collections.version>
         <commons-io.version>2.4</commons-io.version>
@@ -108,72 +108,72 @@
 
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-standard-services-api-nar</artifactId>
+                <artifactId>nifi-asymmetrik-standard-services-api-nar</artifactId>
                 <version>${project.version}</version>
                 <type>nar</type>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-cache-service-nar</artifactId>
+                <artifactId>nifi-asymmetrik-cache-service-nar</artifactId>
                 <version>${project.version}</version>
                 <type>nar</type>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-influxdb-service-nar</artifactId>
+                <artifactId>nifi-asymmetrik-influxdb-service-nar</artifactId>
                 <version>${project.version}</version>
                 <type>nar</type>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-mongo-service-nar</artifactId>
+                <artifactId>nifi-asymmetrik-mongo-service-nar</artifactId>
                 <version>${project.version}</version>
                 <type>nar</type>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-standard-nar</artifactId>
+                <artifactId>nifi-asymmetrik-standard-nar</artifactId>
                 <version>${project.version}</version>
                 <type>nar</type>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-standard-processors</artifactId>
+                <artifactId>nifi-asymmetrik-standard-processors</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-standard-reporting-tasks</artifactId>
+                <artifactId>nifi-asymmetrik-standard-reporting-tasks</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-cache-service-api</artifactId>
+                <artifactId>nifi-asymmetrik-cache-service-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-cache-service</artifactId>
+                <artifactId>nifi-asymmetrik-cache-service</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-influxdb-service-api</artifactId>
+                <artifactId>nifi-asymmetrik-influxdb-service-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-influxdb-service</artifactId>
+                <artifactId>nifi-asymmetrik-influxdb-service</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-mongo-service-api</artifactId>
+                <artifactId>nifi-asymmetrik-mongo-service-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
-                <artifactId>nifi-mongo-service</artifactId>
+                <artifactId>nifi-asymmetrik-mongo-service</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
