@@ -17,8 +17,9 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-asymmetrik-standard-services</artifactId>
-        <version>0.6.4-SNAPSHOT</version>
+        <version>0.6.4</version>
     </parent>
+
     <artifactId>nifi-asymmetrik-standard-services-api-nar</artifactId>
     <packaging>nar</packaging>
 
