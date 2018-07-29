@@ -19,7 +19,7 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-asymmetrik-cache-service-bundle</artifactId>
-        <version>0.6.4-SNAPSHOT</version>
+        <version>0.6.4</version>
     </parent>
 
     <artifactId>nifi-asymmetrik-cache-service-nar</artifactId>

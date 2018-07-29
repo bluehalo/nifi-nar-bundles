@@ -19,11 +19,12 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-asymmetrik-mongo-service-bundle</artifactId>
-        <version>0.6.4-SNAPSHOT</version>
+        <version>0.6.4</version>
     </parent>
 
     <artifactId>nifi-asymmetrik-mongo-service-nar</artifactId>
     <packaging>nar</packaging>
+
     <properties>
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <source.skip>true</source.skip>
