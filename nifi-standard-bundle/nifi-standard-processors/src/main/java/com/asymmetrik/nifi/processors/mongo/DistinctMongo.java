@@ -16,7 +16,6 @@ import org.apache.nifi.processor.ProcessorInitializationContext;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
-import org.bson.BsonType;
 import org.bson.BsonValue;
 import org.bson.Document;
 
