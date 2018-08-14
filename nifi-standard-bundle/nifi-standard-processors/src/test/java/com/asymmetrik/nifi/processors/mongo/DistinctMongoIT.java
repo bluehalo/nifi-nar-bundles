@@ -56,14 +56,14 @@ public class DistinctMongoIT {
 
     @After
     public void tearDown() throws Exception {
-//        if (null != mongo) {
-//            MongoClient client = new MongoClient();
-//            MongoDatabase db = client.getDatabase(MONGO_DATABASE_NAME);
-//            if (db != null) {
-//                db.drop();
-//            }
-//            client.close();
-//        }
+        if (null != mongo) {
+            MongoClient client = new MongoClient();
+            MongoDatabase db = client.getDatabase(MONGO_DATABASE_NAME);
+            if (db != null) {
+                db.drop();
+            }
+            client.close();
+        }
     }
 
     protected void addMongoService(TestRunner runner) throws InitializationException {
