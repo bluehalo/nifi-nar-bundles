@@ -1,10 +1,8 @@
 package com.asymmetrik.nifi.processors.influxdb;
 
+import com.asymmetrik.nifi.services.influxdb.InfluxDbService;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
-
-import com.asymmetrik.nifi.services.influxdb.InfluxDbService;
-
 import org.apache.nifi.reporting.InitializationException;
 import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
@@ -105,8 +103,6 @@ public class QueryInfluxDBIT {
         QueryResult queryResult = influxDb.query(query, TimeUnit.MILLISECONDS);
         QueryResult.Result firstResult = queryResult.getResults().get(0);
         QueryResult.Series firstSeries = firstResult.getSeries().get(0);
-
-        System.out.println(firstSeries.getValues());
     }
 
 }
