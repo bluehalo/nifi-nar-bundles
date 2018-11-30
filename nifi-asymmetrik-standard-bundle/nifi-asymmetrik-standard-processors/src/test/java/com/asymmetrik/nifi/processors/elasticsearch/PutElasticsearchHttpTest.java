@@ -1,5 +1,15 @@
 package com.asymmetrik.nifi.processors.elasticsearch;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.io.IOException;
+import java.net.ConnectException;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import okhttp3.Call;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -19,17 +29,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import java.io.IOException;
-import java.net.ConnectException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class PutElasticsearchHttpTest {
 
@@ -533,8 +532,6 @@ public class PutElasticsearchHttpTest {
     @Test
     @Ignore("Comment this out if you want to run against local or test ES")
     public void testPutElasticSearchBasic() {
-        System.out.println("Starting test " + new Object() {
-        }.getClass().getEnclosingMethod().getName());
         final TestRunner runner = TestRunners.newTestRunner(new PutElasticsearchHttp());
         runner.setValidateExpressionUsage(false);
 
@@ -557,8 +554,6 @@ public class PutElasticsearchHttpTest {
     @Test
     @Ignore("Comment this out if you want to run against local or test ES")
     public void testPutElasticSearchBatch() throws IOException {
-        System.out.println("Starting test " + new Object() {
-        }.getClass().getEnclosingMethod().getName());
         final TestRunner runner = TestRunners.newTestRunner(new PutElasticsearchHttp());
         runner.setValidateExpressionUsage(false);
 
@@ -586,8 +581,6 @@ public class PutElasticsearchHttpTest {
     @Test
     @Ignore("Comment this out if you want to run against local or test ES")
     public void testPutElasticSearchUpdate() {
-        System.out.println("Starting test " + new Object() {
-        }.getClass().getEnclosingMethod().getName());
         final TestRunner runner = TestRunners.newTestRunner(new PutElasticsearchHttp());
         runner.setValidateExpressionUsage(false);
 
@@ -614,8 +607,6 @@ public class PutElasticsearchHttpTest {
     @Test
     @Ignore("Comment this out if you want to run against local or test ES")
     public void testPutElasticSearchUpsert() {
-        System.out.println("Starting test " + new Object() {
-        }.getClass().getEnclosingMethod().getName());
         final TestRunner runner = TestRunners.newTestRunner(new PutElasticsearchHttp());
         runner.setValidateExpressionUsage(false);
 
@@ -642,8 +633,6 @@ public class PutElasticsearchHttpTest {
     @Test
     @Ignore("Comment this out if you want to run against local or test ES")
     public void testPutElasticSearchDocAsUpsert() {
-        System.out.println("Starting test " + new Object() {
-        }.getClass().getEnclosingMethod().getName());
         final TestRunner runner = TestRunners.newTestRunner(new PutElasticsearchHttp());
         runner.setValidateExpressionUsage(false);
 
@@ -671,8 +660,6 @@ public class PutElasticsearchHttpTest {
     @Test
     @Ignore("Comment this out if you want to run against local or test ES")
     public void testPutElasticSearchScriptedUpsert() {
-        System.out.println("Starting test " + new Object() {
-        }.getClass().getEnclosingMethod().getName());
         final TestRunner runner = TestRunners.newTestRunner(new PutElasticsearchHttp());
         runner.setValidateExpressionUsage(false);
 
