@@ -15,15 +15,11 @@ import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.InitializationException;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 @Tags({"InfluxDB", "metrics", "time-series"})
 @CapabilityDescription("Manages connections to an InfluxDB time-series database")
 public class InfluxDbService extends AbstractControllerService implements InfluxDatabaseService {
-
-    private static final Logger logger = LoggerFactory.getLogger(InfluxDbService.class);
 
     static final PropertyDescriptor URL = new PropertyDescriptor.Builder()
             .name("InfluxDB Host")

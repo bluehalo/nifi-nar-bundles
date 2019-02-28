@@ -18,8 +18,8 @@ import org.apache.nifi.components.Validator;
 import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.util.StandardValidators;
-import org.slf4j.LoggerFactory;
 
+@Deprecated
 public abstract class AbstractScpProcessor extends AbstractProcessor {
     static final PropertyDescriptor HOSTNAME = new PropertyDescriptor.Builder()
             .name("Hostname")
@@ -131,20 +131,6 @@ public abstract class AbstractScpProcessor extends AbstractProcessor {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .expressionLanguageSupported(true)
             .build();
-
-    static {
-        JSch.setLogger(new com.jcraft.jsch.Logger() {
-            @Override
-            public boolean isEnabled(int level) {
-                return true;
-            }
-
-            @Override
-            public void log(int level, String message) {
-                LoggerFactory.getLogger(AbstractScpProcessor.class).debug("SFTP Log: {}", message);
-            }
-        });
-    }
 
     protected Session openSession(final ProcessContext context) throws JSchException {
         final JSch jsch = new JSch();
