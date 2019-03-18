@@ -30,6 +30,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.ConfigurationContext;
+import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.AbstractReportingTask;
 import org.apache.nifi.reporting.ReportingContext;
@@ -53,7 +54,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .displayName("InfluxDB Database Name")
             .description("The InfluxDB database into which the metrics will be stored.")
             .required(true)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
@@ -71,7 +72,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .displayName("Hazelcast Members")
             .description("Specifies a CSV of host:port of hazelcast members supporting jmx agents. ie '127.0.0.1:9999, 127.0.0.2:9998'")
             .required(true)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
@@ -81,7 +82,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .description("Specifies the name of the cluster group name to connect to")
             .defaultValue("dev")
             .required(true)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
@@ -89,7 +90,7 @@ public class HazelcastMapMetricsReporter extends AbstractReportingTask {
             .name("map.names")
             .displayName("Hazelcast Map Names")
             .description("Specifies CSV of map names to retrieve stats of. If nothing is provided, all maps will be retrieved")
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(StandardValidators.NON_BLANK_VALIDATOR)
             .build();
 
