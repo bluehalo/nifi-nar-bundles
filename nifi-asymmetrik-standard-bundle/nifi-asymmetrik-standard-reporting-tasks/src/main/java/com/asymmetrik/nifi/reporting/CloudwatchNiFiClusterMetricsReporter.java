@@ -30,23 +30,9 @@ import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
 @Tags({"disk", "system", "monitoring", "metrics", "reporting", "aws", "cloudwatch"})
 @DynamicProperty(name = "tag name", value = "tag value", description = "dynamic properties will be converted to dimensions and will be applied to all metrics")
 @CapabilityDescription("Calculates the amount of storage space available for Content and Flowfile Repositories, " +
-        "calculates the total count and size of the queue, and emits these metrics to CloudWatch.")
+        "calculates the total count and size of NiFi entity queues, and emits these metrics to CloudWatch.")
 
 public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMetricsReporter {
-
-    // This is commented out because including the AWSCredentialsProviderService class in this git repo redefines the service in NiFi.
-    // A second copy of the service appears in the service creation list instead of using the existing one, and that version only works with this process.
-    // It's really weird, and we decided not to enable it at this time.
-
-    // private static final PropertyDescriptor AWS_SERVICE = new PropertyDescriptor.Builder()
-    //         .name("AWS Credentials Provider Service")
-    //         .displayName("AWS Credentials Provider Service")
-    //         .description("Controller service used to obtain AWS credentials.")
-    //         .required(true)
-    //         .expressionLanguageSupported(ExpressionLanguageScope.NONE)
-    //         .identifiesControllerService(AWSCredentialsProviderService.class)
-    //         .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-    //         .build();
 
     private static final PropertyDescriptor NAMESPACE = new PropertyDescriptor.Builder()
             .name("namespace")
@@ -81,11 +67,10 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
     private String namespace;
     private boolean collectsMemory;
     private boolean collectsJVMMetrics;
-    private ArrayList<Dimension> dynamicDimensions;
+    private List<Dimension> dynamicDimensions;
 
     @Override
     public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        // AWS_SERVICE would also go in here if the AWS_SERVICE PropertyDescriptor wasn't weird in this repo
         return ImmutableList.of(NAMESPACE, MEMORY, JVM, PROCESS_GROUPS, REMOTE_PROCESS_GROUPS, PROCESSORS, CONNECTIONS, INPUT_PORTS, OUTPUT_PORTS, VOLUMES);
     }
 
@@ -94,12 +79,6 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         namespace = context.getProperty(NAMESPACE).getValue();
         collectsMemory = context.getProperty(MEMORY).asBoolean();
         collectsJVMMetrics = context.getProperty(JVM).asBoolean();
-
-        // If the AWSCredentialsProvider property was enabled, this block would replace the line below:
-        // AWSCredentialsProvider provider = context
-        //         .getProperty(AWS_SERVICE)
-        //         .asControllerService(AWSCredentialsProviderService.class)
-        //         .getCredentialsProvider();
 
         AWSCredentialsProvider provider = new DefaultAWSCredentialsProviderChain();
 
@@ -123,7 +102,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
     void publish(ReportingContext reportingContext, SystemMetricsSnapshot snapshot) {
 
         Date now = new Date(System.currentTimeMillis());
-        ArrayList<Dimension> dimensions = new ArrayList<>();
+        List<Dimension> dimensions = new ArrayList<>();
 
         // IP Address is always included in the dimensions
         dimensions.add(new Dimension()
@@ -133,14 +112,14 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         // Extra dimensions are created in startup and added here
         dimensions.addAll(dynamicDimensions);
 
-        ArrayList<MetricDatum> metrics = collectMeasurements(now, snapshot, dimensions);
+        List<MetricDatum> metrics = collectMeasurements(now, snapshot, dimensions);
 
         sendToCloudWatch(metrics);
     }
 
-    public ArrayList<MetricDatum> collectMeasurements(Date now, SystemMetricsSnapshot snapshot, ArrayList<Dimension> dimensions) {
+    public List<MetricDatum> collectMeasurements(Date now, SystemMetricsSnapshot snapshot, List<Dimension> dimensions) {
 
-        ArrayList<MetricDatum> toCloudwatch = new ArrayList<>();
+        List<MetricDatum> toCloudwatch = new ArrayList<>();
         // System Memory Logging
         if (collectsMemory) {
             getMetrics("System Memory", snapshot.getMachineMemory(), now, dimensions, toCloudwatch);
@@ -207,14 +186,15 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
      * @param dimensions   the list of dimensions used in addition to the "Metric Location" dimension
      * @param toCloudwatch the list to add all the metrics to, which should get sent to cloudwatch
      */
-    private void getMetrics(String metricName, Map<String, Object> metrics, Date now, ArrayList<Dimension> dimensions, ArrayList<MetricDatum> toCloudwatch) {
-        // Don't try to send metrics without names to CloudWatch, it doesn't like that
+    private void getMetrics(String metricName, Map<String, Object> metrics, Date now, List<Dimension> dimensions, List<MetricDatum> toCloudwatch) {
+        // Don't try to send metrics with missing dimension keys to CloudWatch, it doesn't like that
         // If the thing doesn't have a name, it's not probably not important enough to log anyways
+        // The main case for this is unnamed connections, so name them if you want their logs
         if(metricName.isEmpty()) {
             return;
         }
 
-        ArrayList<Dimension> metricDimensions = new ArrayList<>(dimensions);
+        List<Dimension> metricDimensions = new ArrayList<>(dimensions);
 
         metricDimensions.add(new Dimension()
                 .withName("Metric Location")
@@ -222,6 +202,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         );
 
         metrics.forEach((name, value) -> {
+            // Make sure the key is defined, and that the metric value is a double
             if(name != null && !name.isEmpty() && value != null && value instanceof Double) {
                 toCloudwatch.add(new MetricDatum()
                         .withMetricName(name)
@@ -235,9 +216,9 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
     }
 
     /**
-     * Sends the given list to CloudWatch, under the namespace given
+     * Sends the given list to CloudWatch, under the namespace given in the property values
      */
-    private void sendToCloudWatch(ArrayList<MetricDatum> toCloudwatch) {
+    private void sendToCloudWatch(List<MetricDatum> toCloudwatch) {
          // CloudWatch has a hard limit of 20 allowed metrics for one PutMetricDataRequest.
         final int CLOUDWATCH_LIMIT = 20;
         
