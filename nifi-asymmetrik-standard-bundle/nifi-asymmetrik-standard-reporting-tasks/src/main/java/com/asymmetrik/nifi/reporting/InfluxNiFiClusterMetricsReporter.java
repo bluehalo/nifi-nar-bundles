@@ -25,6 +25,7 @@ import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.expression.AttributeExpression;
+import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.ReportingContext;
 import org.influxdb.InfluxDB;
@@ -43,7 +44,7 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
             .displayName("InfluxDB Service")
             .description("A connection pool to the InfluxDB.")
             .required(true)
-            .expressionLanguageSupported(false)
+            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .identifiesControllerService(InfluxDatabaseService.class)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
@@ -53,7 +54,7 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
             .displayName("Database")
             .description("The database into which the metrics will be stored.")
             .required(true)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
@@ -68,7 +69,7 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
 
     @OnScheduled
     public void startup(ConfigurationContext context) {
-        database = context.getProperty(DATABASE).getValue();
+        database = context.getProperty(DATABASE).evaluateAttributeExpressions().getValue();
         influxDB = context
                 .getProperty(INFLUXDB_SERVICE)
                 .asControllerService(InfluxDatabaseService.class)
@@ -106,7 +107,7 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
                 .name(propertyDescriptorName)
                 .displayName(propertyDescriptorName)
                 .addValidator(StandardValidators.createAttributeExpressionLanguageValidator(AttributeExpression.ResultType.STRING, true))
-                .expressionLanguageSupported(true)
+                .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
                 .dynamic(true)
                 .build();
     }

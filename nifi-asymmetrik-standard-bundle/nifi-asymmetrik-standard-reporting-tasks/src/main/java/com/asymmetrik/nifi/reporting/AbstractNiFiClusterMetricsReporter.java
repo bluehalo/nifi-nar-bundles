@@ -34,6 +34,7 @@ import org.apache.nifi.controller.status.PortStatus;
 import org.apache.nifi.controller.status.ProcessGroupStatus;
 import org.apache.nifi.controller.status.ProcessorStatus;
 import org.apache.nifi.controller.status.RemoteProcessGroupStatus;
+import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.AbstractReportingTask;
 import org.apache.nifi.reporting.EventAccess;
@@ -46,7 +47,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             .name("Disk Usage")
             .description("CSV list of directories for which % disk space used will be generated.")
             .required(false)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
     static final PropertyDescriptor PROCESS_GROUPS = new PropertyDescriptor.Builder()
@@ -56,7 +57,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "If no value is set, statistics from all process groups will be reported. Use the \"Set empty string\" " +
                     "checkbox to exclude all process groups from being reported.")
             .required(false)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor REMOTE_PROCESS_GROUPS = new PropertyDescriptor.Builder()
@@ -66,7 +67,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "If no value is set, statistics from all remote process groups will be reported. Use the \"Set empty string\" " +
                     "checkbox to exclude all remote process groups from being reported.")
             .required(false)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor PROCESSORS = new PropertyDescriptor.Builder()
@@ -76,7 +77,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "If no value is set, statistics from all processors will be reported. Use the \"Set empty string\" " +
                     "checkbox to exclude all processors from being reported.")
             .required(false)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor CONNECTIONS = new PropertyDescriptor.Builder()
@@ -86,7 +87,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "If no value is set, statistics from all connections will be reported. Use the \"Set empty string\" " +
                     "checkbox to exclude all connections from being reported.")
             .required(false)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor INPUT_PORTS = new PropertyDescriptor.Builder()
@@ -96,7 +97,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "If no value is set, statistics from all input ports will be reported. Use the \"Set empty string\" " +
                     "checkbox to exclude all input ports from being reported.")
             .required(false)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
     static final PropertyDescriptor OUTPUT_PORTS = new PropertyDescriptor.Builder()
@@ -106,7 +107,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
                     "If no value is set, statistics from all output ports will be reported. Use the \"Set empty string\" " +
                     "checkbox to exclude all output ports from being reported.")
             .required(false)
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
 
