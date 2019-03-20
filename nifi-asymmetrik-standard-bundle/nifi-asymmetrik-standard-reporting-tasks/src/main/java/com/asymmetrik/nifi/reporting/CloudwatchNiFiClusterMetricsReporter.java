@@ -1,5 +1,7 @@
 package com.asymmetrik.nifi.reporting;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -8,6 +10,7 @@ import java.util.Map;
 import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
 import com.google.common.collect.ImmutableList;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.behavior.DynamicProperty;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
@@ -16,11 +19,15 @@ import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.expression.AttributeExpression;
 import org.apache.nifi.expression.ExpressionLanguageScope;
+import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.ReportingContext;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.PropertiesCredentials;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.cloudwatch.model.Dimension;
@@ -33,6 +40,38 @@ import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
         "calculates the total count and size of NiFi entity queues, and emits these metrics to CloudWatch.")
 
 public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMetricsReporter {
+
+    public static final PropertyDescriptor CREDENTIALS_FILE = new PropertyDescriptor.Builder()
+            .name("Credentials File")
+            .displayName("Credentials File")
+            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
+            .required(false)
+            .addValidator(StandardValidators.FILE_EXISTS_VALIDATOR)
+            .description("Path to a file containing AWS access key and secret key in properties file format. " + 
+                         "This takes priority over the Access Key/Secret Key fields.")
+            .build();
+
+    public static final PropertyDescriptor ACCESS_KEY = new PropertyDescriptor.Builder()
+            .name("Access Key")
+            .displayName("Access Key")
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
+            .required(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .sensitive(true)
+            .description("Access key to use as credentials for accessing AWS. " + 
+                         "If this isn't defined, the default credentials provider will be used instead.")
+            .build();
+
+    public static final PropertyDescriptor SECRET_KEY = new PropertyDescriptor.Builder()
+            .name("Secret Key")
+            .displayName("Secret Key")
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
+            .required(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .sensitive(true)
+            .description("Secret key to use as credentials for accessing AWS. " + 
+                         "If this isn't defined, the default credentials provider will be used instead.")
+            .build();
 
     private static final PropertyDescriptor NAMESPACE = new PropertyDescriptor.Builder()
             .name("namespace")
@@ -50,7 +89,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
             .required(true)
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .allowableValues("true", "false")
-            .defaultValue("false")
+            .defaultValue("true")
             .build();
 
     private static final PropertyDescriptor JVM = new PropertyDescriptor.Builder()
@@ -60,18 +99,20 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
             .required(true)
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .allowableValues("true", "false")
-            .defaultValue("false")
+            .defaultValue("true")
             .build();
 
     private AmazonCloudWatch cloudWatch;
     private String namespace;
-    private boolean collectsMemory;
-    private boolean collectsJVMMetrics;
+    boolean collectsMemory;
+    boolean collectsJVMMetrics;
     private List<Dimension> dynamicDimensions;
 
     @Override
     public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(NAMESPACE, MEMORY, JVM, PROCESS_GROUPS, REMOTE_PROCESS_GROUPS, PROCESSORS, CONNECTIONS, INPUT_PORTS, OUTPUT_PORTS, VOLUMES);
+        return ImmutableList.of(CREDENTIALS_FILE, ACCESS_KEY, SECRET_KEY, NAMESPACE, MEMORY, JVM, 
+                                PROCESS_GROUPS, REMOTE_PROCESS_GROUPS, PROCESSORS, CONNECTIONS, 
+                                INPUT_PORTS, OUTPUT_PORTS, VOLUMES);
     }
 
     @OnScheduled
@@ -80,16 +121,14 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         collectsMemory = context.getProperty(MEMORY).asBoolean();
         collectsJVMMetrics = context.getProperty(JVM).asBoolean();
 
-        AWSCredentialsProvider provider = new DefaultAWSCredentialsProviderChain();
-
         cloudWatch = AmazonCloudWatchClientBuilder.standard()
-                .withCredentials(provider)
+                .withCredentials(getCredentials(context))
                 .build();
 
         dynamicDimensions = new ArrayList<>();
         context.getProperties().forEach((property, value) -> {
             // For each dynamic property, create a new dimension with that key/value pair
-            if (property.isDynamic() && value != null && !value.isEmpty()) {
+            if (property.isDynamic() && StringUtils.isNotBlank(value)) {
                 dynamicDimensions.add(new Dimension()
                         .withName(property.getDisplayName())
                         .withValue(value)
@@ -98,10 +137,30 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         });  
     }
 
+    protected AWSCredentialsProvider getCredentials(final ConfigurationContext context) {
+        final String accessKey = context.getProperty(ACCESS_KEY).evaluateAttributeExpressions().getValue();
+        final String secretKey = context.getProperty(SECRET_KEY).evaluateAttributeExpressions().getValue();
+        final String credentialsFile = context.getProperty(CREDENTIALS_FILE).getValue();
+
+        // If there's a credentials file, try that first
+        if (credentialsFile != null) {
+            try {
+                return new AWSStaticCredentialsProvider(new PropertiesCredentials(new File(credentialsFile)));
+            } catch (final IOException ioe) {
+                throw new ProcessException("Could not read Credentials File", ioe);
+            }
+        }
+        // If there's an access key/secret key, try that next
+        if (accessKey != null && secretKey != null) {
+            return new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey));
+        }
+        // Use default AWS credentials when nothing else is given
+        return new DefaultAWSCredentialsProviderChain();
+    }
+
     @Override
     void publish(ReportingContext reportingContext, SystemMetricsSnapshot snapshot) {
 
-        Date now = new Date(System.currentTimeMillis());
         List<Dimension> dimensions = new ArrayList<>();
 
         // IP Address is always included in the dimensions
@@ -112,12 +171,12 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         // Extra dimensions are created in startup and added here
         dimensions.addAll(dynamicDimensions);
 
-        List<MetricDatum> metrics = collectMeasurements(now, snapshot, dimensions);
+        List<MetricDatum> metrics = collectMeasurements(new Date(), snapshot, dimensions);
 
         sendToCloudWatch(metrics);
     }
 
-    public List<MetricDatum> collectMeasurements(Date now, SystemMetricsSnapshot snapshot, List<Dimension> dimensions) {
+    List<MetricDatum> collectMeasurements(Date now, SystemMetricsSnapshot snapshot, List<Dimension> dimensions) {
 
         List<MetricDatum> toCloudwatch = new ArrayList<>();
         // System Memory Logging
@@ -190,7 +249,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         // Don't try to send metrics with missing dimension keys to CloudWatch, it doesn't like that
         // If the thing doesn't have a name, it's not probably not important enough to log anyways
         // The main case for this is unnamed connections, so name them if you want their logs
-        if(metricName.isEmpty()) {
+        if(StringUtils.isBlank(metricName)) {
             return;
         }
 
@@ -203,7 +262,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
 
         metrics.forEach((name, value) -> {
             // Make sure the key is defined, and that the metric value is a double
-            if(name != null && !name.isEmpty() && value != null && value instanceof Double) {
+            if(StringUtils.isNotBlank(name) && value != null && value instanceof Double) {
                 toCloudwatch.add(new MetricDatum()
                         .withMetricName(name)
                         .withValue((double) value)
@@ -212,7 +271,6 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
                 );
             }
         });
-            
     }
 
     /**
@@ -236,13 +294,5 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
             
             cloudWatch.putMetricData(request);
         }
-    }
-
-    void setCollectsMemory (boolean collectsMemory) {
-        this.collectsMemory = collectsMemory;
-    }
-
-    void setCollectsJVMMetrics (boolean collectsJVMMetrics) {
-        this.collectsJVMMetrics = collectsJVMMetrics;
     }
 }

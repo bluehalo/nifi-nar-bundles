@@ -92,14 +92,14 @@ public class TestCloudwatchNiFiClusterMetricsReporter {
 
         List<Dimension> dimensions = new ArrayList<>();
         List<MetricDatum> cloudwatchMetrics = 
-                metricsCloudwatchReporter.collectMeasurements(new Date(System.currentTimeMillis()), metrics, dimensions);
+                metricsCloudwatchReporter.collectMeasurements(new Date(), metrics, dimensions);
 
         assertEquals(10, cloudwatchMetrics.size());
 
-        metricsCloudwatchReporter.setCollectsMemory(true);
-        metricsCloudwatchReporter.setCollectsJVMMetrics(true);
+        metricsCloudwatchReporter.collectsJVMMetrics = true;
+        metricsCloudwatchReporter.collectsMemory = true;
 
-        cloudwatchMetrics = metricsCloudwatchReporter.collectMeasurements(new Date(System.currentTimeMillis()), metrics, dimensions);
+        cloudwatchMetrics = metricsCloudwatchReporter.collectMeasurements(new Date(), metrics, dimensions);
 
         assertEquals(12, cloudwatchMetrics.size());
     }

@@ -69,11 +69,6 @@
             <artifactId>aws-java-sdk-cloudwatch</artifactId>
             <version>1.11.516</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <version>4.5.2</version>
-        </dependency>
         <!-- TESTING -->
         <dependency>
             <groupId>org.apache.nifi</groupId>
