@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>CloudwatchNiFiClusterMetricsReporter</title>
+
+    <link rel="stylesheet" href="../../css/component-usage.css" type="text/css" />
+</head>
+
+<body>
+    <h2 style="padding-bottom:0;margin-bottom: 0;">Description:</h2>
+    <div>
+        Calculates the amount of storage space available for Content and Flowfile Repositories, 
+        gathers system and JVM statuses, and processor queue sizes, and emits these metrics to Amazon CloudWatch.
+        Uses default AWS credentials if no credentials file or access key/secret key pair is given.
+    </div>
+
+    <h2 style="padding-bottom:0;margin-bottom: 0;">Current Limitations:</h2>
+    <div>
+        Due to packaging issues in NiFi, there isn't a sane way to import AWSCredentialsProviderService.
+        Including the AWSCredentialsProviderService class in this service redefines the service in NiFi, and makes
+        a second copy of the service appear in the service creation list. Due to this issue, this service cannot support
+        an AWSCredentialsProviderService.
+    </div>
+
+</body>
+
+</html>

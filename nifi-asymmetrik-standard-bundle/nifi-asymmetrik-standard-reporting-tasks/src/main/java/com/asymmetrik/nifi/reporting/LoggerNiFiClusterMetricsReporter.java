@@ -9,6 +9,7 @@ import com.google.gson.Gson;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.ReportingContext;
 
@@ -24,7 +25,7 @@ public class LoggerNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
             .displayName("Log Level")
             .description("Log level.")
             .required(true)
-            .expressionLanguageSupported(false)
+            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .allowableValues("info", "debug", "warn", "error")
             .defaultValue("error")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)

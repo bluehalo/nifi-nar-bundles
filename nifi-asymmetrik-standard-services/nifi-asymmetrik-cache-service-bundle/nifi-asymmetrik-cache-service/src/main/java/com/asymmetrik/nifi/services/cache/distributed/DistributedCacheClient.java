@@ -32,8 +32,6 @@ import org.apache.nifi.remote.VersionNegotiator;
 import org.apache.nifi.ssl.SSLContextService;
 import org.apache.nifi.ssl.SSLContextService.ClientAuth;
 import org.apache.nifi.stream.io.DataOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Modeled after org.apache.nifi.distributed.cache.client.DistributedMapCacheClientService
@@ -47,16 +45,14 @@ import org.slf4j.LoggerFactory;
 })
 public class DistributedCacheClient extends AbstractControllerService implements SetCacheService<String> {
 
-    private static final Logger logger = LoggerFactory.getLogger(DistributedCacheClient.class);
-
-    public static final PropertyDescriptor HOSTNAME = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor HOSTNAME = new PropertyDescriptor.Builder()
             .name("Server Hostname")
             .description("The name of the server that is running the DistributedCacheServer service")
             .required(true)
             .expressionLanguageSupported(true)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
-    public static final PropertyDescriptor PORT = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor PORT = new PropertyDescriptor.Builder()
             .name("Server Port")
             .description("The port on the remote server that is to be used when communicating with the DistributedCacheServer service")
             .required(true)
@@ -64,14 +60,14 @@ public class DistributedCacheClient extends AbstractControllerService implements
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .defaultValue("4557")
             .build();
-    public static final PropertyDescriptor SSL_CONTEXT_SERVICE = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor SSL_CONTEXT_SERVICE = new PropertyDescriptor.Builder()
             .name("SSL Context Service")
             .description("If specified, indicates the SSL Context Service that is used to communicate with the "
                     + "remote server. If not specified, communications will not be encrypted")
             .required(false)
             .identifiesControllerService(SSLContextService.class)
             .build();
-    public static final PropertyDescriptor COMMUNICATIONS_TIMEOUT = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor COMMUNICATIONS_TIMEOUT = new PropertyDescriptor.Builder()
             .name("Communications Timeout")
             .description("Specifies how long to wait when communicating with the remote server before determining that "
                     + "there is a communications failure if data cannot be sent or received")
@@ -112,8 +108,8 @@ public class DistributedCacheClient extends AbstractControllerService implements
                 commsSession.close();
             } catch (final IOException e) { /* empty */ }
         }
-        if (logger.isDebugEnabled() && getIdentifier() != null) {
-            logger.debug("Closed {}", new Object[]{getIdentifier()});
+        if (getLogger().isDebugEnabled() && getIdentifier() != null) {
+            getLogger().debug("Closed {}", new Object[]{getIdentifier()});
         }
     }
 
@@ -144,7 +140,7 @@ public class DistributedCacheClient extends AbstractControllerService implements
                         returnValues.add(dis.readBoolean());
                     }
                 } catch (EOFException eof) {
-                    logger.warn("EOFException caught: read {} returnvalues, expected {}", new Object[]{returnValues.size(), keys.size()});
+                    getLogger().warn("EOFException caught: read {} returnvalues, expected {}", new Object[]{returnValues.size(), keys.size()});
                 }
                 return returnValues;
             }

@@ -44,8 +44,6 @@ import org.apache.nifi.ssl.SSLContextService.ClientAuth;
 import org.apache.nifi.stream.io.BufferedInputStream;
 import org.apache.nifi.stream.io.BufferedOutputStream;
 import org.apache.nifi.stream.io.DataOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Modeled after org.apache.nifi.distributed.cache.server.DistributedCacheServer
@@ -56,9 +54,8 @@ import org.slf4j.LoggerFactory;
         " is typically accomplished via a DistributedCacheClient service.")
 @SeeAlso(classNames = {"com.asymmetrik.nifi.standard.services.cache.distributed.DistributedCacheClient"})
 public class DistributedCacheServer extends AbstractControllerService {
-    private static final Logger logger = LoggerFactory.getLogger(DistributedCacheServer.class);
 
-    public static final PropertyDescriptor PORT = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor PORT = new PropertyDescriptor.Builder()
             .name("Port")
             .description("The port to listen on for incoming connections")
             .required(true)
@@ -66,7 +63,7 @@ public class DistributedCacheServer extends AbstractControllerService {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .defaultValue("4557")
             .build();
-    public static final PropertyDescriptor SSL_CONTEXT_SERVICE = new PropertyDescriptor.Builder()
+    private static final PropertyDescriptor SSL_CONTEXT_SERVICE = new PropertyDescriptor.Builder()
             .name("SSL Context Service")
             .description("If specified, this service will be used to create an SSL Context that will be used "
                     + "to secure communications; if not specified, communications will not be secure")
@@ -74,7 +71,7 @@ public class DistributedCacheServer extends AbstractControllerService {
             .identifiesControllerService(SSLContextService.class)
             .build();
 
-    protected volatile boolean stopped = false;
+    private volatile boolean stopped = false;
     private final Set<Thread> processInputThreads = new CopyOnWriteArraySet<>();
     private volatile ServerSocketChannel serverSocketChannel;
 
@@ -191,12 +188,12 @@ public class DistributedCacheServer extends AbstractControllerService {
                     final SocketChannel socketChannel;
                     try {
                         socketChannel = serverSocketChannel.accept();
-                        logger.debug("Connected to {}", new Object[]{socketChannel});
+                        getLogger().debug("Connected to {}", new Object[]{socketChannel});
                     } catch (final IOException e) {
                         if (!stopped) {
-                            logger.error("{} unable to accept connection from remote peer due to {}", this, e.toString());
-                            if (logger.isDebugEnabled()) {
-                                logger.error("", e);
+                            getLogger().error("unable to accept connection from remote peer", e);
+                            if (getLogger().isDebugEnabled()) {
+                                getLogger().error("", e);
                             }
                         }
                         return;
@@ -220,9 +217,9 @@ public class DistributedCacheServer extends AbstractControllerService {
                                     rawOutputStream = new SSLSocketChannelOutputStream(sslSocketChannel);
                                 }
                             } catch (IOException e) {
-                                logger.error("Cannot create input and/or output streams for {}", new Object[]{getIdentifier()}, e);
-                                if (logger.isDebugEnabled()) {
-                                    logger.error("", e);
+                                getLogger().error("Cannot create input and/or output streams for {}", new Object[]{getIdentifier()}, e);
+                                if (getLogger().isDebugEnabled()) {
+                                    getLogger().error("", e);
                                 }
                                 try {
                                     socketChannel.close();
@@ -242,14 +239,14 @@ public class DistributedCacheServer extends AbstractControllerService {
                                     continueComms = listen(in, out, versionNegotiator.getVersion());
                                 }
                                 // client has issued 'close'
-                                logger.debug("Client issued close on {}", new Object[]{socketChannel});
+                                getLogger().debug("Client issued close on {}", new Object[]{socketChannel});
                             } catch (final SocketTimeoutException e) {
-                                logger.debug("30 sec timeout reached", e);
+                                getLogger().debug("30 sec timeout reached", e);
                             } catch (final IOException | HandshakeException e) {
                                 if (!stopped) {
-                                    logger.error("{} unable to communicate with remote peer {} due to {}", new Object[]{this, peer, e.toString()});
-                                    if (logger.isDebugEnabled()) {
-                                        logger.error("", e);
+                                    getLogger().error("{} unable to communicate with remote peer {} due to {}", new Object[]{this, peer, e.toString()});
+                                    if (getLogger().isDebugEnabled()) {
+                                        getLogger().error("", e);
                                     }
                                 }
                             } finally {
@@ -278,7 +275,7 @@ public class DistributedCacheServer extends AbstractControllerService {
     private void stopServer() throws IOException {
         stopped = true;
 
-        logger.info("Stopping CacheServer {}", new Object[]{getIdentifier()});
+        getLogger().info("Stopping CacheServer {}", new Object[]{getIdentifier()});
 
         if (serverSocketChannel != null && serverSocketChannel.isOpen()) {
             serverSocketChannel.close();
