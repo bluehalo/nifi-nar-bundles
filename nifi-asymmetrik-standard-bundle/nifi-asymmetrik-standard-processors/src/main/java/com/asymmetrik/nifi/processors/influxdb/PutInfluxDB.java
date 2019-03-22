@@ -111,8 +111,9 @@ public class PutInfluxDB extends AbstractProcessor {
     static final PropertyDescriptor RETENTION_POLICY = new PropertyDescriptor.Builder()
             .name("retention")
             .displayName("Retention Policy")
-            .description("The retention policy used to store events (https://docs.influxdata.com/influxdb/v1.3/concepts/key_concepts/#retention-policy).")
+            .description("The retention policy used to store events (https://docs.influxdata.com/influxdb/v1.7/concepts/key_concepts/#retention-policy).")
             .required(false)
+            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
@@ -151,7 +152,7 @@ public class PutInfluxDB extends AbstractProcessor {
     private volatile String databaseName;
 
     @OnScheduled
-    public void onScheduled(final ProcessContext context) throws IOException {
+    public void onScheduled(final ProcessContext context) {
         InfluxDB db = context.getProperty(INFLUX_DB_SERVICE)
                 .asControllerService(InfluxDatabaseService.class)
                 .getInfluxDb();
@@ -222,7 +223,15 @@ public class PutInfluxDB extends AbstractProcessor {
      */
     Optional<BatchPoints> collectPoints(ProcessContext context, List<FlowFile> flowFiles, String database) {
         PropertyValue timeProp = context.getProperty(TIMESTAMP);
-        BatchPoints batchPoints = BatchPoints.database(database).build();
+        PropertyValue retentionProperty = context.getProperty(RETENTION_POLICY);
+        PropertyValue consistency = context.getProperty(CONSISTENCY_LEVEL);
+
+        BatchPoints.Builder batchPointsBuilder = BatchPoints.database(database)
+                .consistency(InfluxDB.ConsistencyLevel.valueOf(consistency.getValue().toUpperCase()));
+
+        if (retentionProperty.isSet()) {
+            batchPointsBuilder.retentionPolicy(retentionProperty.getValue());
+        }
 
         long now = System.currentTimeMillis();
         for (FlowFile flowfile : flowFiles) {
@@ -238,13 +247,16 @@ public class PutInfluxDB extends AbstractProcessor {
                 continue;
             }
 
-            Point.Builder pointBuilder = Point
+            Point point = Point
                     .measurement(context.getProperty(MEASUREMENT).evaluateAttributeExpressions(flowfile).getValue())
                     .tag(tagsMap)
                     .time(timeProp.isSet() ? context.getProperty(TIMESTAMP).evaluateAttributeExpressions(flowfile).asLong() : now, TimeUnit.MILLISECONDS)
-                    .fields(getFields(flowfile, dynamicFieldValues));
-            batchPoints.point(pointBuilder.build());
+                    .fields(getFields(flowfile, dynamicFieldValues))
+                    .build();
+            batchPointsBuilder.point(point);
         }
+
+        BatchPoints batchPoints = batchPointsBuilder.build();
         return batchPoints.getPoints().isEmpty() ? Optional.empty() : Optional.of(batchPoints);
     }
 

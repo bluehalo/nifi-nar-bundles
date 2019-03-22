@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.components.PropertyValue;
 import org.apache.nifi.components.ValidationResult;
+import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.util.StandardValidators;
@@ -50,7 +51,7 @@ public class PutInfluxDBIT {
                 .name("fieldKey")
                 .description("Key-value tags containing metadata. Conceptually tags are indexed columns in a table. Format expected: <tag-key>=<tag-value>,...")
                 .required(false)
-                .expressionLanguageSupported(true)
+                .expressionLanguageSupported(ExpressionLanguageScope.FLOWFILE_ATTRIBUTES)
                 .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
                 .dynamic(true)
                 .build();
@@ -127,7 +128,6 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ANY);
-        runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
         runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_HEADERS);
         runner.setProperty(PutInfluxDB.TAGS, "tag1=t1, tag2=t2");
         runner.setProperty(dynamicProp, "1.2");
@@ -138,6 +138,32 @@ public class PutInfluxDBIT {
         runner.run();
         runner.assertTransferCount(PutInfluxDB.REL_FAILURE, 0);
         runner.assertTransferCount(PutInfluxDB.REL_SUCCESS, 1);
+    }
+
+    @Test
+    public void testNonExistentRetentionPolicy() throws InitializationException {
+        Map<String, PropertyValue> dynamicProps = new ConcurrentHashMap<>();
+        dynamicProps.put("field", new MockPropertyValue("1.1"));
+
+        PutInfluxDB putInfluxDB = new PutInfluxDB();
+        putInfluxDB.dynamicFieldValues = dynamicProps;
+
+        TestRunner runner = TestRunners.newTestRunner(putInfluxDB);
+        addInfluxService(runner);
+        runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
+        runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
+        runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ANY);
+        runner.setProperty(PutInfluxDB.RETENTION_POLICY, "does_not_exists");
+        runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_HEADERS);
+        runner.setProperty(PutInfluxDB.TAGS, "tag1=t1, tag2=t2");
+        runner.setProperty(dynamicProp, "1.2");
+
+        ProcessSession session = runner.getProcessSessionFactory().createSession();
+        FlowFile ff = session.create();
+        runner.enqueue(ff);
+        runner.run();
+        runner.assertTransferCount(PutInfluxDB.REL_FAILURE, 1);
+        runner.assertTransferCount(PutInfluxDB.REL_SUCCESS, 0);
     }
 
     @Test
