@@ -94,7 +94,7 @@ public class QueryMongoIT {
 
         MockFlowFile out = runner.getFlowFilesForRelationship(AbstractMongoProcessor.REL_SUCCESS).get(0);
         BasicDBObject actual = (BasicDBObject) JSON.parse(new String(out.toByteArray(), StandardCharsets.UTF_8));
-        assertEquals("[ \"12345\" , \"23456\" , \"34567\"]", actual.getString("criteria"));
+        assertEquals("[12345, 23456, 34567]", actual.getString("criteria"));
     }
 
     @Test
