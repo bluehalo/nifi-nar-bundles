@@ -1,6 +1,5 @@
 package com.asymmetrik.nifi.processors.influxdb;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -8,6 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.asymmetrik.nifi.services.influxdb.InfluxDatabaseService;
 import com.google.common.collect.ImmutableList;
@@ -27,7 +27,6 @@ import org.apache.nifi.components.ValidationResult;
 import org.apache.nifi.components.Validator;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
@@ -36,6 +35,7 @@ import org.influxdb.InfluxDB;
 import org.influxdb.dto.BatchPoints;
 import org.influxdb.dto.Point;
 
+@SuppressWarnings("Duplicates")
 @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
 @SideEffectFree
 @SupportsBatching
@@ -48,38 +48,13 @@ import org.influxdb.dto.Point;
 @CapabilityDescription("Writes to data to InfluxDB (https://docs.influxdata.com/influxdb/v1.3). This processor parses " +
         "dynamic properties as field key/values. It should be noted, that field values are assumed " +
         "to be double precision floating-point values, or can be converted to double precision floating-point values.")
-public class PutInfluxDB extends AbstractProcessor {
-    static final String CONSISTENCY_LEVEL_ONE = "One";
-    static final String CONSISTENCY_LEVEL_ALL = "All";
-    static final String CONSISTENCY_LEVEL_ANY = "Any";
-    static final String CONSISTENCY_LEVEL_QUORUM = "Quorum";
-
-    static final String LOG_LEVEL_NONE = "None";
-    static final String LOG_LEVEL_BASIC = "Basic";
-    static final String LOG_LEVEL_HEADERS = "Headers";
-    static final String LOG_LEVEL_FULL = "Full";
-
-    static final PropertyDescriptor INFLUX_DB_SERVICE = new PropertyDescriptor.Builder()
-            .name("InfluxDb Service")
-            .description("The Controller Service that is used to communicate with InfluxDB")
-            .required(true)
-            .identifiesControllerService(InfluxDatabaseService.class)
-            .build();
-
+public class PutInfluxDB extends AbstractInfluxProcessor {
     static final PropertyDescriptor MEASUREMENT = new PropertyDescriptor.Builder()
             .name("Measurement")
             .description("The measurement to write")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .expressionLanguageSupported(ExpressionLanguageScope.FLOWFILE_ATTRIBUTES)
             .required(true)
-            .build();
-
-    static final PropertyDescriptor DATABASE_NAME = new PropertyDescriptor.Builder()
-            .name("Database Name")
-            .description("The database name to reference")
-            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
-            .required(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
     static final PropertyDescriptor TAGS = new PropertyDescriptor.Builder()
@@ -98,35 +73,6 @@ public class PutInfluxDB extends AbstractProcessor {
             .required(false)
             .build();
 
-    static final PropertyDescriptor CONSISTENCY_LEVEL = new PropertyDescriptor.Builder()
-            .name("consistency")
-            .displayName("Consistency Level")
-            .description("The consistency level used to store events.")
-            .required(true)
-            .allowableValues(CONSISTENCY_LEVEL_ONE, CONSISTENCY_LEVEL_ANY, CONSISTENCY_LEVEL_QUORUM, CONSISTENCY_LEVEL_ALL)
-            .defaultValue(CONSISTENCY_LEVEL_ONE)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .build();
-
-    static final PropertyDescriptor RETENTION_POLICY = new PropertyDescriptor.Builder()
-            .name("retention")
-            .displayName("Retention Policy")
-            .description("The retention policy used to store events (https://docs.influxdata.com/influxdb/v1.7/concepts/key_concepts/#retention-policy).")
-            .required(false)
-            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .build();
-
-    static final PropertyDescriptor LOG_LEVEL = new PropertyDescriptor.Builder()
-            .name("log_level")
-            .displayName("Log Level")
-            .description("The Log Level")
-            .required(true)
-            .allowableValues(LOG_LEVEL_NONE, LOG_LEVEL_BASIC, LOG_LEVEL_HEADERS, LOG_LEVEL_FULL)
-            .defaultValue(LOG_LEVEL_NONE)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .build();
-
     static final PropertyDescriptor TIMESTAMP = new PropertyDescriptor.Builder()
             .name("timestamp")
             .displayName("Event Timestamp")
@@ -137,55 +83,21 @@ public class PutInfluxDB extends AbstractProcessor {
             .addValidator(StandardValidators.LONG_VALIDATOR)
             .build();
 
-    static final Relationship REL_SUCCESS = new Relationship.Builder()
-            .name("success")
-            .description("All FlowFiles that are successfully written to InfluxDB are routed to this relationship")
-            .build();
-
-    static final Relationship REL_FAILURE = new Relationship.Builder()
-            .name("failure")
-            .description("All FlowFiles that cannot be written to InfluxDB are routed to this relationship")
-            .build();
-
+    private AtomicReference<InfluxDB> influxRef = new AtomicReference<>();
     Map<String, PropertyValue> dynamicFieldValues;
-    private volatile InfluxDB influxDb;
-    private volatile String databaseName;
 
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
-        InfluxDB db = context.getProperty(INFLUX_DB_SERVICE)
+        influxRef.set(context.getProperty(INFLUX_DB_SERVICE)
                 .asControllerService(InfluxDatabaseService.class)
-                .getInfluxDb();
-        db.disableBatch();
+                .getInfluxDb());
 
-        String database = context.getProperty(DATABASE_NAME).evaluateAttributeExpressions().getValue();
-        if (!db.databaseExists(database)) {
-            db.createDatabase(database);
-        }
-
-        final Map<String, PropertyValue> dynamicProperties = new ConcurrentHashMap<>();
+        dynamicFieldValues = new ConcurrentHashMap<>();
         for (final PropertyDescriptor descriptor : context.getProperties().keySet()) {
             if (!descriptor.isDynamic()) {
                 continue;
             }
-            dynamicProperties.put(descriptor.getName(), context.getProperty(descriptor));
-        }
-
-        this.influxDb = db;
-        this.databaseName = database;
-        this.dynamicFieldValues = dynamicProperties;
-
-        InfluxDB.ConsistencyLevel consistency = InfluxDB.ConsistencyLevel.valueOf(context.getProperty(CONSISTENCY_LEVEL).getValue().toUpperCase());
-        this.influxDb.setConsistency(consistency);
-
-        PropertyValue retentionProperty = context.getProperty(RETENTION_POLICY);
-        if (retentionProperty.isSet()) {
-            this.influxDb.setRetentionPolicy(retentionProperty.getValue());
-        }
-
-        PropertyValue logLevelProperty = context.getProperty(LOG_LEVEL);
-        if (logLevelProperty.isSet()) {
-            this.influxDb.setLogLevel(InfluxDB.LogLevel.valueOf(logLevelProperty.getValue().toUpperCase()));
+            dynamicFieldValues.put(descriptor.getName(), context.getProperty(descriptor));
         }
     }
 
@@ -199,21 +111,24 @@ public class PutInfluxDB extends AbstractProcessor {
         if (dynamicFieldValues.isEmpty()) {
             getLogger().error("At least on field key/value pair must be defined using dynamic properties");
             session.transfer(flowFiles, REL_FAILURE);
+            context.yield();
             return;
         }
 
-        Optional<BatchPoints> batchPoints = collectPoints(context, flowFiles, databaseName);
+        Optional<BatchPoints> batchPoints = collectPoints(context, flowFiles);
         if (!batchPoints.isPresent()) {
             session.transfer(flowFiles, REL_FAILURE);
+            context.yield();
             return;
         }
 
         try {
-            influxDb.write(batchPoints.get());
+            influxRef.get().write(batchPoints.get());
             session.transfer(flowFiles, REL_SUCCESS);
         } catch (Exception e) {
             getLogger().error("Error while writing to InfluxDB: " + e.getMessage(), e);
             session.transfer(flowFiles, REL_FAILURE);
+            context.yield();
         }
     }
 
@@ -221,18 +136,21 @@ public class PutInfluxDB extends AbstractProcessor {
      *
      * @return an optional of the data points
      */
-    Optional<BatchPoints> collectPoints(ProcessContext context, List<FlowFile> flowFiles, String database) {
-        PropertyValue timeProp = context.getProperty(TIMESTAMP);
-        PropertyValue retentionProperty = context.getProperty(RETENTION_POLICY);
+    Optional<BatchPoints> collectPoints(ProcessContext context, List<FlowFile> flowFiles) {
+        PropertyValue databaseProp = context.getProperty(DATABASE_NAME);
         PropertyValue consistency = context.getProperty(CONSISTENCY_LEVEL);
+        PropertyValue measurementProp = context.getProperty(MEASUREMENT);
 
-        BatchPoints.Builder batchPointsBuilder = BatchPoints.database(database)
-                .consistency(InfluxDB.ConsistencyLevel.valueOf(consistency.getValue().toUpperCase()));
+        BatchPoints.Builder builder = BatchPoints
+                .database(databaseProp.evaluateAttributeExpressions().getValue())
+                .consistency(InfluxDB.ConsistencyLevel.valueOf(consistency.evaluateAttributeExpressions().getValue().toUpperCase()));
 
-        if (retentionProperty.isSet()) {
-            batchPointsBuilder.retentionPolicy(retentionProperty.getValue());
+        PropertyValue retentionProp = context.getProperty(RETENTION_POLICY);
+        if (retentionProp.isSet()) {
+            builder.retentionPolicy(retentionProp.evaluateAttributeExpressions().getValue());
         }
 
+        PropertyValue timestampProp = context.getProperty(TIMESTAMP);
         long now = System.currentTimeMillis();
         for (FlowFile flowfile : flowFiles) {
             String tags = context.getProperty(TAGS).evaluateAttributeExpressions(flowfile).getValue();
@@ -248,15 +166,15 @@ public class PutInfluxDB extends AbstractProcessor {
             }
 
             Point point = Point
-                    .measurement(context.getProperty(MEASUREMENT).evaluateAttributeExpressions(flowfile).getValue())
+                    .measurement(measurementProp.evaluateAttributeExpressions(flowfile).getValue())
                     .tag(tagsMap)
-                    .time(timeProp.isSet() ? context.getProperty(TIMESTAMP).evaluateAttributeExpressions(flowfile).asLong() : now, TimeUnit.MILLISECONDS)
+                    .time(timestampProp.isSet() ? timestampProp.evaluateAttributeExpressions(flowfile).asLong() : now, TimeUnit.MILLISECONDS)
                     .fields(getFields(flowfile, dynamicFieldValues))
                     .build();
-            batchPointsBuilder.point(point);
+            builder.point(point);
         }
 
-        BatchPoints batchPoints = batchPointsBuilder.build();
+        BatchPoints batchPoints = builder.build();
         return batchPoints.getPoints().isEmpty() ? Optional.empty() : Optional.of(batchPoints);
     }
 
@@ -293,7 +211,7 @@ public class PutInfluxDB extends AbstractProcessor {
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
         return ImmutableList.of(INFLUX_DB_SERVICE, MEASUREMENT, DATABASE_NAME, TAGS, BATCH_SIZE,
-                RETENTION_POLICY, CONSISTENCY_LEVEL, LOG_LEVEL, TIMESTAMP);
+                RETENTION_POLICY, CONSISTENCY_LEVEL, TIMESTAMP);
     }
 
     @Override

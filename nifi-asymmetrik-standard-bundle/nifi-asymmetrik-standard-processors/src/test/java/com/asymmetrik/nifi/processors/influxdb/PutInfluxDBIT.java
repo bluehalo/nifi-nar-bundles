@@ -66,7 +66,6 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_QUORUM);
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
-        runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_NONE);
         runner.setProperty(PutInfluxDB.TAGS, "invalidTags");
         runner.assertNotValid();
 
@@ -87,7 +86,6 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ALL);
-        runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_BASIC);
         runner.assertValid();
 
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
@@ -128,7 +126,6 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ANY);
-        runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_HEADERS);
         runner.setProperty(PutInfluxDB.TAGS, "tag1=t1, tag2=t2");
         runner.setProperty(dynamicProp, "1.2");
 
@@ -154,7 +151,6 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ANY);
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "does_not_exists");
-        runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_HEADERS);
         runner.setProperty(PutInfluxDB.TAGS, "tag1=t1, tag2=t2");
         runner.setProperty(dynamicProp, "1.2");
 
@@ -174,7 +170,6 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ONE);
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
-        runner.setProperty(PutInfluxDB.LOG_LEVEL, PutInfluxDB.LOG_LEVEL_FULL);
         runner.setProperty(PutInfluxDB.TAGS, "tag1=t1, tag2=t2");
         runner.setProperty(dynamicProp, "invalid");
 
@@ -199,8 +194,9 @@ public class PutInfluxDBIT {
         String database = "testdb";
 
         final MockProcessContext context = new MockProcessContext(new PutInfluxDB());
-        context.setProperty(PutInfluxDB.TAGS, tagString);
+        context.setProperty(PutInfluxDB.DATABASE_NAME, database);
         context.setProperty(PutInfluxDB.MEASUREMENT, measurement);
+        context.setProperty(PutInfluxDB.TAGS, tagString);
 
         Map<String, PropertyValue> dynamicProps = new ConcurrentHashMap<>();
         dynamicProps.put("field", new MockPropertyValue("1.1"));
@@ -209,7 +205,7 @@ public class PutInfluxDBIT {
         putInfluxDB.dynamicFieldValues = dynamicProps;
 
         MockFlowFile ff = new MockFlowFile(1);
-        Optional<BatchPoints> result = putInfluxDB.collectPoints(context, ImmutableList.of(ff), database);
+        Optional<BatchPoints> result = putInfluxDB.collectPoints(context, ImmutableList.of(ff));
         assertTrue(result.isPresent());
 
         BatchPoints batchPoints = result.get();

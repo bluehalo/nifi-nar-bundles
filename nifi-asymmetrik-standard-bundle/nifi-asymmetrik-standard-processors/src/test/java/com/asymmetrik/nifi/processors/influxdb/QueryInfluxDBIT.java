@@ -12,6 +12,8 @@ import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 import org.junit.Test;
 
+import static org.junit.Assert.assertNotNull;
+
 public class QueryInfluxDBIT {
 
     @Test
@@ -99,10 +101,10 @@ public class QueryInfluxDBIT {
     @Test
     public void testResponse() {
         InfluxDB influxDb = InfluxDBFactory.connect("http://127.0.0.1:8086");
-        Query query = new Query("select * from processor limit 1", "datastork");
-        QueryResult queryResult = influxDb.query(query, TimeUnit.MILLISECONDS);
-        QueryResult.Result firstResult = queryResult.getResults().get(0);
-        QueryResult.Series firstSeries = firstResult.getSeries().get(0);
-    }
+        influxDb.createDatabase("testdb");
 
+        Query query = new Query("select * from processor limit 1", "testdb");
+        QueryResult queryResult = influxDb.query(query, TimeUnit.MILLISECONDS);
+        assertNotNull(queryResult);
+    }
 }
