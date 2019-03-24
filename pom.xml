@@ -18,7 +18,7 @@
 
     <groupId>com.asymmetrik.nifi</groupId>
     <artifactId>nifi-asymmetrik-nar-bundles</artifactId>
-    <version>0.6.8-SNAPSHOT-SNAPSHOT</version>
+    <version>0.6.8-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>

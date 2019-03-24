@@ -88,9 +88,11 @@ public class PutInfluxDB extends AbstractInfluxProcessor {
 
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
-        influxRef.set(context.getProperty(INFLUX_DB_SERVICE)
+        InfluxDB influxDb = context.getProperty(INFLUX_DB_SERVICE)
                 .asControllerService(InfluxDatabaseService.class)
-                .getInfluxDb());
+                .getInfluxDb();
+        influxDb.disableBatch();
+        influxRef.set(influxDb);
 
         dynamicFieldValues = new ConcurrentHashMap<>();
         for (final PropertyDescriptor descriptor : context.getProperties().keySet()) {
@@ -210,8 +212,15 @@ public class PutInfluxDB extends AbstractInfluxProcessor {
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(INFLUX_DB_SERVICE, MEASUREMENT, DATABASE_NAME, TAGS, BATCH_SIZE,
-                RETENTION_POLICY, CONSISTENCY_LEVEL, TIMESTAMP);
+        return ImmutableList.of(
+                INFLUX_DB_SERVICE,
+                MEASUREMENT,
+                DATABASE_NAME,
+                TAGS,
+                BATCH_SIZE,
+                RETENTION_POLICY,
+                CONSISTENCY_LEVEL,
+                TIMESTAMP);
     }
 
     @Override

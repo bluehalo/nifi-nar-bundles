@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.asymmetrik.nifi.models.ConnectionStatusMetric;
 import com.asymmetrik.nifi.models.influxdb.MetricTags;
@@ -23,6 +24,7 @@ import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.components.PropertyValue;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.expression.AttributeExpression;
 import org.apache.nifi.expression.ExpressionLanguageScope;
@@ -38,6 +40,10 @@ import org.influxdb.dto.Point;
         "calculates the total count and size of the queue, and emits these metrics to InfluxDB.")
 
 public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetricsReporter {
+    private static final String CONSISTENCY_LEVEL_ONE = "One";
+    private static final String CONSISTENCY_LEVEL_ALL = "All";
+    private static final String CONSISTENCY_LEVEL_ANY = "Any";
+    private static final String CONSISTENCY_LEVEL_QUORUM = "Quorum";
 
     private static final PropertyDescriptor INFLUXDB_SERVICE = new PropertyDescriptor.Builder()
             .name("InfluxDB Service")
@@ -58,23 +64,36 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
-    private ConcurrentHashMap<String, String> globalTags;
-    private InfluxDB influxDB;
-    private String database;
+    private static final PropertyDescriptor CONSISTENCY_LEVEL = new PropertyDescriptor.Builder()
+            .name("consistency")
+            .displayName("Consistency Level")
+            .description("The consistency level used to store events.")
+            .required(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
+            .allowableValues(CONSISTENCY_LEVEL_ONE, CONSISTENCY_LEVEL_ANY, CONSISTENCY_LEVEL_QUORUM, CONSISTENCY_LEVEL_ALL)
+            .defaultValue(CONSISTENCY_LEVEL_ONE)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
 
-    @Override
-    public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(INFLUXDB_SERVICE, DATABASE, VOLUMES, PROCESS_GROUPS, REMOTE_PROCESS_GROUPS, PROCESSORS, CONNECTIONS, INPUT_PORTS, OUTPUT_PORTS);
-    }
+    private static final PropertyDescriptor RETENTION_POLICY = new PropertyDescriptor.Builder()
+            .name("retention")
+            .displayName("Retention Policy")
+            .description("The retention policy used to store events (https://docs.influxdata.com/influxdb/v1.7/concepts/key_concepts/#retention-policy).")
+            .required(false)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
+    private ConcurrentHashMap<String, String> globalTags;
+    private AtomicReference<InfluxDB> influxRef = new AtomicReference<>();
 
     @OnScheduled
     public void startup(ConfigurationContext context) {
-        database = context.getProperty(DATABASE).evaluateAttributeExpressions().getValue();
-        influxDB = context
-                .getProperty(INFLUXDB_SERVICE)
+        InfluxDB influxDb = context.getProperty(INFLUXDB_SERVICE)
                 .asControllerService(InfluxDatabaseService.class)
                 .getInfluxDb();
-        influxDB.disableBatch();
+        influxDb.disableBatch();
+        influxRef.set(influxDb);
 
         globalTags = new ConcurrentHashMap<>();
         for (Map.Entry<PropertyDescriptor, String> prop : context.getProperties().entrySet()) {
@@ -86,19 +105,45 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
 
     @Override
     void publish(ReportingContext reportingContext, SystemMetricsSnapshot systemMetricsSnapshot) {
-        long now = System.currentTimeMillis();
-        BatchPoints.Builder pointsBuilder = BatchPoints
-                .database(database)
+        PropertyValue database = reportingContext.getProperty(DATABASE);
+        PropertyValue consistency = reportingContext.getProperty(CONSISTENCY_LEVEL);
+
+        BatchPoints.Builder builder = BatchPoints
+                .database(database.evaluateAttributeExpressions().getValue())
                 .tag(MetricTags.CLUSTER_NODE_ID, systemMetricsSnapshot.getClusterNodeIdentifier())
-                .tag(MetricTags.IP_ADDRESS, systemMetricsSnapshot.getIpAddress());
+                .tag(MetricTags.IP_ADDRESS, systemMetricsSnapshot.getIpAddress())
+                .consistency(InfluxDB.ConsistencyLevel.valueOf(consistency.evaluateAttributeExpressions().getValue().toUpperCase()));
+
+        PropertyValue retention = reportingContext.getProperty(RETENTION_POLICY);
+        if (retention.isSet()) {
+            builder.retentionPolicy(retention.evaluateAttributeExpressions().getValue());
+        }
 
         // Add tags pull from dynamic properties
-        applyTags(pointsBuilder);
+        applyTags(builder);
 
         // Add data
-        BatchPoints points = pointsBuilder.build();
+        long now = System.currentTimeMillis();
+        BatchPoints points = builder.build();
         collectMeasurements(now, systemMetricsSnapshot, points);
-        influxDB.write(points);
+        influxRef.get().write(points);
+    }
+
+    @Override
+    public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
+        return ImmutableList.of(
+                INFLUXDB_SERVICE,
+                DATABASE,
+                RETENTION_POLICY,
+                CONSISTENCY_LEVEL,
+                VOLUMES,
+                PROCESS_GROUPS,
+                REMOTE_PROCESS_GROUPS,
+                PROCESSORS,
+                CONNECTIONS,
+                INPUT_PORTS,
+                OUTPUT_PORTS
+        );
     }
 
     @Override
