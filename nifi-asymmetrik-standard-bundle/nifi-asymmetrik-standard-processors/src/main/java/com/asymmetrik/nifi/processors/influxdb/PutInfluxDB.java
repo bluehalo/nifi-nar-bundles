@@ -141,11 +141,13 @@ public class PutInfluxDB extends AbstractInfluxProcessor {
     Optional<BatchPoints> collectPoints(ProcessContext context, List<FlowFile> flowFiles) {
         PropertyValue databaseProp = context.getProperty(DATABASE_NAME);
         PropertyValue consistency = context.getProperty(CONSISTENCY_LEVEL);
+        PropertyValue precision = context.getProperty(PRECISION);
         PropertyValue measurementProp = context.getProperty(MEASUREMENT);
 
         BatchPoints.Builder builder = BatchPoints
                 .database(databaseProp.evaluateAttributeExpressions().getValue())
-                .consistency(InfluxDB.ConsistencyLevel.valueOf(consistency.evaluateAttributeExpressions().getValue().toUpperCase()));
+                .consistency(InfluxDB.ConsistencyLevel.valueOf(consistency.evaluateAttributeExpressions().getValue().toUpperCase()))
+                .precision(TimeUnit.valueOf(precision.getValue().toUpperCase()));
 
         PropertyValue retentionProp = context.getProperty(RETENTION_POLICY);
         if (retentionProp.isSet()) {
@@ -220,6 +222,7 @@ public class PutInfluxDB extends AbstractInfluxProcessor {
                 BATCH_SIZE,
                 RETENTION_POLICY,
                 CONSISTENCY_LEVEL,
+                PRECISION,
                 TIMESTAMP);
     }
 

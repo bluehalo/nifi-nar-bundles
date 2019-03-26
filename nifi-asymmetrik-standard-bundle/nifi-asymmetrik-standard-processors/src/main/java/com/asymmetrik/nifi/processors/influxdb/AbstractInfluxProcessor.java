@@ -9,6 +9,10 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.util.StandardValidators;
 
 abstract class AbstractInfluxProcessor extends AbstractProcessor {
+    static final String PRECISION_SECONDS = "Seconds";
+    static final String PRECISION_MILLISECONDS = "Milliseconds";
+    static final String PRECISION_MICROSECONDS = "Microseconds";
+    static final String PRECISION_NANOSECONDS = "Nanoseconds";
     static final String CONSISTENCY_LEVEL_ONE = "One";
     static final String CONSISTENCY_LEVEL_ALL = "All";
     static final String CONSISTENCY_LEVEL_ANY = "Any";
@@ -46,6 +50,17 @@ abstract class AbstractInfluxProcessor extends AbstractProcessor {
             .description("The retention policy used to store events (https://docs.influxdata.com/influxdb/v1.7/concepts/key_concepts/#retention-policy).")
             .required(false)
             .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
+    static final PropertyDescriptor PRECISION = new PropertyDescriptor.Builder()
+            .name("precision")
+            .displayName("Precision")
+            .description("The temporal precision for metrics.")
+            .required(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
+            .allowableValues(PRECISION_SECONDS, PRECISION_MILLISECONDS, PRECISION_MICROSECONDS, PRECISION_NANOSECONDS)
+            .defaultValue(PRECISION_MILLISECONDS)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
