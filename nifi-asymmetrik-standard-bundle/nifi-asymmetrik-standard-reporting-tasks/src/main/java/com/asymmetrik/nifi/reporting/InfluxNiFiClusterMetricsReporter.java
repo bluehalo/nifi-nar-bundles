@@ -40,6 +40,10 @@ import org.influxdb.dto.Point;
         "calculates the total count and size of the queue, and emits these metrics to InfluxDB.")
 
 public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetricsReporter {
+    private static final String PRECISION_SECONDS = "Seconds";
+    private static final String PRECISION_MILLISECONDS = "Milliseconds";
+    private static final String PRECISION_MICROSECONDS = "Microseconds";
+    private static final String PRECISION_NANOSECONDS = "Nanoseconds";
     private static final String CONSISTENCY_LEVEL_ONE = "One";
     private static final String CONSISTENCY_LEVEL_ALL = "All";
     private static final String CONSISTENCY_LEVEL_ANY = "Any";
@@ -84,6 +88,17 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
+    static final PropertyDescriptor PRECISION = new PropertyDescriptor.Builder()
+            .name("precision")
+            .displayName("Precision")
+            .description("The temporal precision for metrics.")
+            .required(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
+            .allowableValues(PRECISION_SECONDS, PRECISION_MILLISECONDS, PRECISION_MICROSECONDS, PRECISION_NANOSECONDS)
+            .defaultValue(PRECISION_MILLISECONDS)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .build();
+
     private ConcurrentHashMap<String, String> globalTags;
     private AtomicReference<InfluxDB> influxRef = new AtomicReference<>();
 
@@ -107,12 +122,14 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
     void publish(ReportingContext reportingContext, SystemMetricsSnapshot systemMetricsSnapshot) {
         PropertyValue database = reportingContext.getProperty(DATABASE);
         PropertyValue consistency = reportingContext.getProperty(CONSISTENCY_LEVEL);
+        PropertyValue precision = reportingContext.getProperty(PRECISION);
 
         BatchPoints.Builder builder = BatchPoints
                 .database(database.evaluateAttributeExpressions().getValue())
                 .tag(MetricTags.CLUSTER_NODE_ID, systemMetricsSnapshot.getClusterNodeIdentifier())
                 .tag(MetricTags.IP_ADDRESS, systemMetricsSnapshot.getIpAddress())
-                .consistency(InfluxDB.ConsistencyLevel.valueOf(consistency.evaluateAttributeExpressions().getValue().toUpperCase()));
+                .consistency(InfluxDB.ConsistencyLevel.valueOf(consistency.evaluateAttributeExpressions().getValue().toUpperCase()))
+                .precision(TimeUnit.valueOf(precision.getValue().toUpperCase()));
 
         PropertyValue retention = reportingContext.getProperty(RETENTION_POLICY);
         if (retention.isSet()) {
@@ -136,6 +153,8 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
                 DATABASE,
                 RETENTION_POLICY,
                 CONSISTENCY_LEVEL,
+                RETENTION_POLICY,
+                PRECISION,
                 VOLUMES,
                 PROCESS_GROUPS,
                 REMOTE_PROCESS_GROUPS,
