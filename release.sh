@@ -126,3 +126,6 @@ git commit -m "Bumped to ${SNAPSHOT_VERSION}"
 
 # Push new SNAPSHOT to origin develop
 git push origin develop
+
+# Accept the changes
+mvn versions:commit
