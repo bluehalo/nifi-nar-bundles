@@ -66,6 +66,7 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_QUORUM);
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
+        runner.setProperty(PutInfluxDB.PRECISION, AbstractInfluxProcessor.PRECISION_MILLISECONDS);
         runner.setProperty(PutInfluxDB.TAGS, "invalidTags");
         runner.assertNotValid();
 
@@ -86,6 +87,7 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ALL);
+        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_SECONDS);
         runner.assertValid();
 
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
@@ -97,6 +99,7 @@ public class PutInfluxDBIT {
         PutInfluxDB putInfluxDB = new PutInfluxDB();
         TestRunner runner = TestRunners.newTestRunner(putInfluxDB);
         addInfluxService(runner);
+        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_MICROSECONDS);
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.TIMESTAMP, "123456789012");
@@ -126,6 +129,7 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ANY);
+        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_NANOSECONDS);
         runner.setProperty(PutInfluxDB.TAGS, "tag1=t1, tag2=t2");
         runner.setProperty(dynamicProp, "1.2");
 
@@ -297,80 +301,4 @@ public class PutInfluxDBIT {
         validationResult = validator.validate("adsf", "foo=bar,hello = world ", null);
         assertTrue(validationResult.isValid());
     }
-
-   // @Before
-   // public void setUp() throws Exception {
-   //     influxService = new InfluxDbService();
-   //
-   //     TestRunner runner = TestRunners.newTestRunner(PutInfluxDB.class);
-   //     runner.setProperty(PutInfluxDB.DATABASE_NAME, "UnitTesting");
-   //     runner.setProperty(PutInfluxDB.INFLUX_DB_SERVICE, "influxdb");
-   //
-   //     runner.addControllerService("influx", influxService, new HashMap<>());
-   //     runner.setProperty(PutInfluxDB.INFLUX_DB_SERVICE, "influx");
-   //     runner.enableControllerService(influxService);
-   // }
-
-//    @Test
-//    public void tagNoDynamicField() {
-//        runner.setProperty(PutInfluxDB.MEASUREMENT, "appleseed");
-//        runner.setProperty(PutInfluxDB.TAGS, "chang=lee, good=bad, walking = dead");
-//
-//        runner.enqueue(new byte[0]);
-//        runner.run();
-//    }
-//
-//
-//    @Test
-//    public void tagDynamicField() {
-//        runner.setProperty(PutInfluxDB.MEASUREMENT, "def");
-//        runner.setProperty(PutInfluxDB.TAGS, "chang=lee, good=bad, walking = dead");
-//        runner.setProperty(PutInfluxDB.FIELD_VALUE, "35.13");
-//
-//        runner.setProperty("dynamic1", "3939.03");
-//        runner.setProperty("dynamic2", "3939.05");
-//
-//        runner.enqueue(new byte[0]);
-//        runner.run();
-//    }
-//
-//    @Test
-//    public void emptyTagNoDynamicField() {
-//        runner.setProperty(PutInfluxDB.MEASUREMENT, "ghi");
-//        runner.setProperty(PutInfluxDB.TAGS, "");
-//
-//        runner.enqueue(new byte[0]);
-//        runner.run();
-//    }
-//
-//    @Test
-//    public void emptyTagDynamicField() {
-//        runner.setProperty(PutInfluxDB.MEASUREMENT, "jkl");
-//        runner.setProperty(PutInfluxDB.TAGS, "");
-//
-//        runner.setProperty("dynamic1", "3939.03");
-//        runner.setProperty("dynamic2", "3939.05");
-//
-//        runner.enqueue(new byte[0]);
-//        runner.run();
-//    }
-//
-//    @Test
-//    public void noTagNoDynamicField() {
-//        runner.setProperty(PutInfluxDB.MEASUREMENT, "mno");
-//
-//        runner.enqueue(new byte[0]);
-//        runner.run();
-//    }
-//
-//    @Test
-//    public void noTagDynamicField() {
-//        runner.setProperty(PutInfluxDB.MEASUREMENT, "pqr");
-//
-//        runner.setProperty("dynamic1", "3939.03");
-//        runner.setProperty("dynamic2", "3939.05");
-//
-//        runner.enqueue(new byte[0]);
-//        runner.run();
-//    }
 }
