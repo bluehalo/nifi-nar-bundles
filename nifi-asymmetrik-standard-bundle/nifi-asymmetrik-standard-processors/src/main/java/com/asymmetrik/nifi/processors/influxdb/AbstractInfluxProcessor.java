@@ -9,10 +9,11 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.util.StandardValidators;
 
 abstract class AbstractInfluxProcessor extends AbstractProcessor {
-    static final String PRECISION_SECONDS = "Seconds";
-    static final String PRECISION_MILLISECONDS = "Milliseconds";
-    static final String PRECISION_MICROSECONDS = "Microseconds";
     static final String PRECISION_NANOSECONDS = "Nanoseconds";
+    static final String PRECISION_MICROSECONDS = "Microseconds";
+    static final String PRECISION_MILLISECONDS = "Milliseconds";
+    static final String PRECISION_SECONDS = "Seconds";
+    static final String PRECISION_MINUTES = "Minutes";
     static final String CONSISTENCY_LEVEL_ONE = "One";
     static final String CONSISTENCY_LEVEL_ALL = "All";
     static final String CONSISTENCY_LEVEL_ANY = "Any";
@@ -59,8 +60,8 @@ abstract class AbstractInfluxProcessor extends AbstractProcessor {
             .description("The temporal precision for metrics.")
             .required(true)
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
-            .allowableValues(PRECISION_SECONDS, PRECISION_MILLISECONDS, PRECISION_MICROSECONDS, PRECISION_NANOSECONDS)
-            .defaultValue(PRECISION_MILLISECONDS)
+            .allowableValues(PRECISION_NANOSECONDS, PRECISION_MICROSECONDS, PRECISION_MILLISECONDS, PRECISION_SECONDS, PRECISION_MINUTES)
+            .defaultValue(PRECISION_NANOSECONDS)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
