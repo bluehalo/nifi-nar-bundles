@@ -66,7 +66,7 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_QUORUM);
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
-        runner.setProperty(PutInfluxDB.PRECISION, AbstractInfluxProcessor.PRECISION_MILLISECONDS);
+        runner.setProperty(PutInfluxDB.PRECISION, AbstractInfluxProcessor.PRECISION_SECONDS);
         runner.setProperty(PutInfluxDB.TAGS, "invalidTags");
         runner.assertNotValid();
 
@@ -87,7 +87,7 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ALL);
-        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_SECONDS);
+        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_NANOSECONDS);
         runner.assertValid();
 
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "ten_days");
@@ -99,7 +99,7 @@ public class PutInfluxDBIT {
         PutInfluxDB putInfluxDB = new PutInfluxDB();
         TestRunner runner = TestRunners.newTestRunner(putInfluxDB);
         addInfluxService(runner);
-        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_MICROSECONDS);
+        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_MILLISECONDS);
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.TIMESTAMP, "123456789012");
@@ -129,7 +129,7 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ANY);
-        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_NANOSECONDS);
+        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_MICROSECONDS);
         runner.setProperty(PutInfluxDB.TAGS, "tag1=t1, tag2=t2");
         runner.setProperty(dynamicProp, "1.2");
 
@@ -154,6 +154,7 @@ public class PutInfluxDBIT {
         runner.setProperty(PutInfluxDB.MEASUREMENT, MEASUREMENT);
         runner.setProperty(PutInfluxDB.DATABASE_NAME, DB);
         runner.setProperty(PutInfluxDB.CONSISTENCY_LEVEL, PutInfluxDB.CONSISTENCY_LEVEL_ANY);
+        runner.setProperty(PutInfluxDB.PRECISION, PutInfluxDB.PRECISION_MINUTES);
         runner.setProperty(PutInfluxDB.RETENTION_POLICY, "does_not_exists");
         runner.setProperty(PutInfluxDB.TAGS, "tag1=t1, tag2=t2");
         runner.setProperty(dynamicProp, "1.2");

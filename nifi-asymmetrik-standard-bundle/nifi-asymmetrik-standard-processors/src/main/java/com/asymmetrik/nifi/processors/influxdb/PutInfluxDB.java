@@ -76,14 +76,17 @@ public class PutInfluxDB extends AbstractInfluxProcessor {
     static final PropertyDescriptor TIMESTAMP = new PropertyDescriptor.Builder()
             .name("timestamp")
             .displayName("Event Timestamp")
-            .description("A long value representing the number of milliseconds after EPOCH that" +
-                    " will be used as the entry's timestamp.")
+            .description("A long integer value representing the timestamp of a measurement point. Please note that " +
+                    "the precision property directly affects how this value is interpreted. For example, setting this " +
+                    "property to 'System.currentTimeMillis()' requires the 'precision' property to be set to 'Milliseconds' " +
+                    "in order to properly interpret the value.")
             .required(false)
             .expressionLanguageSupported(ExpressionLanguageScope.FLOWFILE_ATTRIBUTES)
             .addValidator(StandardValidators.LONG_VALIDATOR)
             .build();
 
     private AtomicReference<InfluxDB> influxRef = new AtomicReference<>();
+    private AtomicReference<TimeUnit> precisionRef = new AtomicReference<>();
     Map<String, PropertyValue> dynamicFieldValues;
 
     @OnScheduled
@@ -101,6 +104,8 @@ public class PutInfluxDB extends AbstractInfluxProcessor {
             }
             dynamicFieldValues.put(descriptor.getName(), context.getProperty(descriptor));
         }
+
+        precisionRef.set(TimeUnit.valueOf(context.getProperty(PRECISION).getValue().toUpperCase()));
     }
 
     @Override
@@ -141,13 +146,12 @@ public class PutInfluxDB extends AbstractInfluxProcessor {
     Optional<BatchPoints> collectPoints(ProcessContext context, List<FlowFile> flowFiles) {
         PropertyValue databaseProp = context.getProperty(DATABASE_NAME);
         PropertyValue consistency = context.getProperty(CONSISTENCY_LEVEL);
-        PropertyValue precision = context.getProperty(PRECISION);
         PropertyValue measurementProp = context.getProperty(MEASUREMENT);
 
         BatchPoints.Builder builder = BatchPoints
                 .database(databaseProp.evaluateAttributeExpressions().getValue())
                 .consistency(InfluxDB.ConsistencyLevel.valueOf(consistency.evaluateAttributeExpressions().getValue().toUpperCase()))
-                .precision(TimeUnit.valueOf(precision.getValue().toUpperCase()));
+                .precision(precisionRef.get());
 
         PropertyValue retentionProp = context.getProperty(RETENTION_POLICY);
         if (retentionProp.isSet()) {
@@ -155,7 +159,6 @@ public class PutInfluxDB extends AbstractInfluxProcessor {
         }
 
         PropertyValue timestampProp = context.getProperty(TIMESTAMP);
-        long now = System.currentTimeMillis();
         for (FlowFile flowfile : flowFiles) {
             String tags = context.getProperty(TAGS).evaluateAttributeExpressions(flowfile).getValue();
             Map<String, String> tagsMap = KeyValueStringValidator.parse(tags);
@@ -169,13 +172,15 @@ public class PutInfluxDB extends AbstractInfluxProcessor {
                 continue;
             }
 
-            Point point = Point
+            Point.Builder point = Point
                     .measurement(measurementProp.evaluateAttributeExpressions(flowfile).getValue())
                     .tag(tagsMap)
-                    .time(timestampProp.isSet() ? timestampProp.evaluateAttributeExpressions(flowfile).asLong() : now, TimeUnit.MILLISECONDS)
-                    .fields(getFields(flowfile, dynamicFieldValues))
-                    .build();
-            builder.point(point);
+                    .fields(getFields(flowfile, dynamicFieldValues));
+
+            if (timestampProp.isSet()) {
+                point.time(timestampProp.evaluateAttributeExpressions(flowfile).asLong(), precisionRef.get());
+            }
+            builder.point(point.build());
         }
 
         BatchPoints batchPoints = builder.build();
