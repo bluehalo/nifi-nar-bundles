@@ -7,6 +7,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.amazonaws.util.EC2MetadataUtils;
 import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
 import com.google.common.collect.ImmutableList;
 
@@ -47,7 +48,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .required(false)
             .addValidator(StandardValidators.FILE_EXISTS_VALIDATOR)
-            .description("Path to a file containing AWS access key and secret key in properties file format. " + 
+            .description("Path to a file containing AWS access key and secret key in properties file format. " +
                          "This takes priority over the Access Key/Secret Key fields.")
             .build();
 
@@ -58,7 +59,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
             .required(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .sensitive(true)
-            .description("Access key to use as credentials for accessing AWS. " + 
+            .description("Access key to use as credentials for accessing AWS. " +
                          "If this isn't defined, the default credentials provider will be used instead.")
             .build();
 
@@ -69,7 +70,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
             .required(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .sensitive(true)
-            .description("Secret key to use as credentials for accessing AWS. " + 
+            .description("Secret key to use as credentials for accessing AWS. " +
                          "If this isn't defined, the default credentials provider will be used instead.")
             .build();
 
@@ -103,6 +104,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
             .build();
 
     private AmazonCloudWatch cloudWatch;
+    private String hostname;
     private String namespace;
     boolean collectsMemory;
     boolean collectsJVMMetrics;
@@ -110,8 +112,8 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
 
     @Override
     public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(CREDENTIALS_FILE, ACCESS_KEY, SECRET_KEY, NAMESPACE, MEMORY, JVM, 
-                                PROCESS_GROUPS, REMOTE_PROCESS_GROUPS, PROCESSORS, CONNECTIONS, 
+        return ImmutableList.of(CREDENTIALS_FILE, ACCESS_KEY, SECRET_KEY, NAMESPACE, MEMORY, JVM,
+                                PROCESS_GROUPS, REMOTE_PROCESS_GROUPS, PROCESSORS, CONNECTIONS,
                                 INPUT_PORTS, OUTPUT_PORTS, VOLUMES);
     }
 
@@ -120,11 +122,10 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         namespace = context.getProperty(NAMESPACE).getValue();
         collectsMemory = context.getProperty(MEMORY).asBoolean();
         collectsJVMMetrics = context.getProperty(JVM).asBoolean();
-
         cloudWatch = AmazonCloudWatchClientBuilder.standard()
                 .withCredentials(getCredentials(context))
                 .build();
-
+        // hostname = EC2MetadataUtils.getInstanceId();
         dynamicDimensions = new ArrayList<>();
         context.getProperties().forEach((property, value) -> {
             // For each dynamic property, create a new dimension with that key/value pair
@@ -134,7 +135,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
                         .withValue(value)
                 );
             }
-        });  
+        });
     }
 
     protected AWSCredentialsProvider getCredentials(final ConfigurationContext context) {
@@ -168,6 +169,12 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
                 .withName("Ip Address")
                 .withValue(snapshot.getIpAddress())
         );
+
+        dimensions.add(new Dimension()
+                .withName("Instance Id")
+                .withValue(snapshot.getHostname())
+        );
+
         // Extra dimensions are created in startup and added here
         dimensions.addAll(dynamicDimensions);
 
@@ -188,32 +195,32 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
             getMetrics("System JVM", snapshot.getJvmMetrics(), now, dimensions, toCloudwatch);
         }
         // Selected Process Group Logging
-        snapshot.getProcessGroupSnapshots().forEach((groupData) -> 
+        snapshot.getProcessGroupSnapshots().forEach((groupData) ->
             // Send metrics for each processor group in the CSV list
             getMetrics(groupData.getProcessGroupName(), groupData.valuesAsMap(), now, dimensions, toCloudwatch)
         );
         // Selected Remote Process Group Logging
-        snapshot.getRemoteProcessGroupSnapshots().forEach((groupData) -> 
+        snapshot.getRemoteProcessGroupSnapshots().forEach((groupData) ->
             // Send metrics for each remote process group in the CSV list
             getMetrics(groupData.getRemoteProcessGroupName(), groupData.valuesAsMap(), now, dimensions, toCloudwatch)
         );
         // Selected Processor Logging
-        snapshot.getProcessorSnapshots().forEach((processorData) -> 
+        snapshot.getProcessorSnapshots().forEach((processorData) ->
             // Send metrics for each processor in the CSV list
             getMetrics(processorData.getProcessorName(), processorData.valuesAsMap(), now, dimensions, toCloudwatch)
         );
         // Selected Connection logging
-        snapshot.getConnectionSnapshots().forEach((connectionData) -> 
+        snapshot.getConnectionSnapshots().forEach((connectionData) ->
             // Send metrics for each connection in the CSV list
             getMetrics(connectionData.getConnectionName(), connectionData.valuesAsMap(), now, dimensions, toCloudwatch)
         );
         // Selected Input Port logging
-        snapshot.getInputPortSnapshots().forEach((portData) -> 
+        snapshot.getInputPortSnapshots().forEach((portData) ->
             // Send metrics for each input port in the CSV list
             getMetrics(portData.getInputPortName(), portData.valuesAsMap(), now, dimensions, toCloudwatch)
         );
         // Selected Output Port logging
-        snapshot.getOutputPortSnapshots().forEach((portData) -> 
+        snapshot.getOutputPortSnapshots().forEach((portData) ->
             // Send metrics for each output port in the CSV list
             getMetrics(portData.getInputPortName(), portData.valuesAsMap(), now, dimensions, toCloudwatch)
         );
@@ -279,19 +286,19 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
     private void sendToCloudWatch(List<MetricDatum> toCloudwatch) {
          // CloudWatch has a hard limit of 20 allowed metrics for one PutMetricDataRequest.
         final int CLOUDWATCH_LIMIT = 20;
-        
+
         // Loop over the list of metrics, sending over CLOUDWATCH_LIMIT number of metrics at a time
         for (int startIndex = 0; startIndex < toCloudwatch.size(); startIndex += CLOUDWATCH_LIMIT) {
 
             // If the list deosn't have CLOUDWATCH_LIMIT elements left, only send the remaining ones
-            int endIndex = toCloudwatch.size() - startIndex < CLOUDWATCH_LIMIT 
-                    ? toCloudwatch.size() 
+            int endIndex = toCloudwatch.size() - startIndex < CLOUDWATCH_LIMIT
+                    ? toCloudwatch.size()
                     : startIndex + CLOUDWATCH_LIMIT;
-            
+
             PutMetricDataRequest request = new PutMetricDataRequest()
                     .withNamespace(namespace)
                     .withMetricData(toCloudwatch.subList(startIndex, endIndex));
-            
+
             cloudWatch.putMetricData(request);
         }
     }

@@ -21,12 +21,11 @@ import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
 import com.asymmetrik.nifi.models.influxdb.MetricFields;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 
+import com.amazonaws.util.EC2MetadataUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
-import org.apache.nifi.components.ValidationContext;
-import org.apache.nifi.components.ValidationResult;
 import org.apache.nifi.components.Validator;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.controller.status.ConnectionStatus;
@@ -154,6 +153,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
 
             SystemMetricsSnapshot systemMetricsSnapshot = new SystemMetricsSnapshot()
                     .setClusterNodeIdentifier(context.getClusterNodeIdentifier())
+                    .setHostname(getHostname())
                     .setIpAddress(getIpAddress())
                     .setRootProcessGroupSnapshot(new ProcessGroupStatusMetric(eventAccess.getControllerStatus()))
                     .setMachineMemory(computeMachineMemory())
@@ -374,6 +374,13 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         }
 
         return metrics;
+    }
+
+    public static String getHostname() {
+
+        EC2MetadataUtils.get
+        return EC2MetadataUtils.getInstanceId();
+
     }
 
     /**
