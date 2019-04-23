@@ -9,7 +9,6 @@ import java.util.Map;
 
 import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.MetricDatum;
-import com.amazonaws.util.EC2MetadataUtils;
 import com.asymmetrik.nifi.models.ProcessGroupStatusMetric;
 import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
 
