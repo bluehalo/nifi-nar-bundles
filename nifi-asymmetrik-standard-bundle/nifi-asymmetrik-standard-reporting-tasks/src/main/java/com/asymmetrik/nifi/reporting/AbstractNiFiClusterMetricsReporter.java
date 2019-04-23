@@ -117,7 +117,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
-    private static AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+    private static AmazonEC2 ec2;
 
 
     private List<String> volumes;
@@ -385,7 +385,8 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         return metrics;
     }
 
-    public static String getHostname() {
+    public String getHostname() {
+        ec2 = AmazonEC2ClientBuilder.standard().build();
 
         //Get the Instance information using the Instance ID
         DescribeInstancesRequest request =  new DescribeInstancesRequest()
