@@ -124,7 +124,6 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         cloudWatch = AmazonCloudWatchClientBuilder.standard()
                 .withCredentials(getCredentials(context))
                 .build();
-        // hostname = EC2MetadataUtils.getInstanceId();
         dynamicDimensions = new ArrayList<>();
         context.getProperties().forEach((property, value) -> {
             // For each dynamic property, create a new dimension with that key/value pair
