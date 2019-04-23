@@ -387,8 +387,8 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
     public static String getHostname() {
 
         //Get the Instance information using the Instance ID
-        DescribeInstancesRequest request =  new DescribeInstancesRequest()
-                .withInstanceIds(EC2MetadataUtils.getInstanceId());
+        DescribeInstancesRequest request =  new DescribeInstancesRequest();
+                //.withInstanceIds(EC2MetadataUtils.getInstanceId());
 
         for(Tag tag : ec2.describeInstances(request)
                 .getReservations().get(0)
