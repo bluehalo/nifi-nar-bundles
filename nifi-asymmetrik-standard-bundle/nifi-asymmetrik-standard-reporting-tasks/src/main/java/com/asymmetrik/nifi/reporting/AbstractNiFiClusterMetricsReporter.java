@@ -117,7 +117,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
-    static AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
+    private static AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
 
 
     private List<String> volumes;
