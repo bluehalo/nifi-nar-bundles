@@ -117,8 +117,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
-    private AmazonEC2 ec2 = AmazonEC2ClientBuilder.standard().build();
-
+    private AmazonEC2 ec2;
     private List<String> volumes;
     private List<String> processGroups;
     private List<String> remoteProcessGroups;
@@ -151,6 +150,10 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         collectAllConnections = !context.getProperty(CONNECTIONS).isSet();
         collectAllInputPorts = !context.getProperty(INPUT_PORTS).isSet();
         collectAllOutputPorts = !context.getProperty(OUTPUT_PORTS).isSet();
+
+        if(ec2 == null){
+            ec2 = AmazonEC2ClientBuilder.standard().build();
+        }
     }
 
     @Override
