@@ -7,7 +7,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import com.amazonaws.util.EC2MetadataUtils;
 import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
 import com.google.common.collect.ImmutableList;
 
