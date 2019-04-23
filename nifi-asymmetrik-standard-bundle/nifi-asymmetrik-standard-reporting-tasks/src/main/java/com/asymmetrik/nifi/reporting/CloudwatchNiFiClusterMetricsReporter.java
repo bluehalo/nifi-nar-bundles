@@ -104,7 +104,6 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
             .build();
 
     private AmazonCloudWatch cloudWatch;
-    private String hostname;
     private String namespace;
     boolean collectsMemory;
     boolean collectsJVMMetrics;
@@ -164,14 +163,11 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
 
         List<Dimension> dimensions = new ArrayList<>();
 
-        // IP Address is always included in the dimensions
-        dimensions.add(new Dimension()
-                .withName("Ip Address")
-                .withValue(snapshot.getIpAddress())
-        );
+        // Include the Host Name as a Dimension
 
+        //EC2 Host/Tag Name
         dimensions.add(new Dimension()
-                .withName("Instance Id")
+                .withName("Host Name")
                 .withValue(snapshot.getHostname())
         );
 
