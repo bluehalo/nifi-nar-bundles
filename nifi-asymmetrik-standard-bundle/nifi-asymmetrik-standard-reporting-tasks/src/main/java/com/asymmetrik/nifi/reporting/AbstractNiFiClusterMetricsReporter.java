@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.util.EC2MetadataUtils;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -117,6 +118,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
+
     private AmazonEC2 ec2;
     private List<String> volumes;
     private List<String> processGroups;
@@ -151,9 +153,6 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         collectAllInputPorts = !context.getProperty(INPUT_PORTS).isSet();
         collectAllOutputPorts = !context.getProperty(OUTPUT_PORTS).isSet();
 
-        if(ec2 == null){
-            ec2 = AmazonEC2ClientBuilder.standard().build();
-        }
     }
 
     @Override
@@ -388,7 +387,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
     }
 
     public String getHostname() {
-
+        ec2 = AmazonEC2ClientBuilder.standard().build();
         //Get the Instance information using the Instance ID
         DescribeInstancesRequest request =  new DescribeInstancesRequest()
                 .withInstanceIds(EC2MetadataUtils.getInstanceId());
@@ -405,4 +404,5 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         return "";
 
     }
+
 }
