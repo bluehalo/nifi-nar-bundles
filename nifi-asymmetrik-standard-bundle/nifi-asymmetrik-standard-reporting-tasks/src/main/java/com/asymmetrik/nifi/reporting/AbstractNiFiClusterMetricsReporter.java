@@ -1,8 +1,6 @@
 package com.asymmetrik.nifi.reporting;
 
 import java.io.File;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,7 +10,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.util.EC2MetadataUtils;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.AmazonEC2;
