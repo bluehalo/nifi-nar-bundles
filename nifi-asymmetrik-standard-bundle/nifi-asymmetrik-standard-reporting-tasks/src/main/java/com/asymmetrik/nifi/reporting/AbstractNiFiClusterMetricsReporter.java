@@ -16,7 +16,6 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
 import com.amazonaws.services.ec2.model.Tag;
 
-
 import com.asymmetrik.nifi.models.ConnectionStatusMetric;
 import com.asymmetrik.nifi.models.PortStatusMetric;
 import com.asymmetrik.nifi.models.ProcessGroupStatusMetric;
@@ -25,8 +24,6 @@ import com.asymmetrik.nifi.models.RemoteProcessGroupStatusMetric;
 import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
 import com.asymmetrik.nifi.models.influxdb.MetricFields;
 import com.yammer.metrics.core.VirtualMachineMetrics;
-
-
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -149,7 +146,6 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         collectAllConnections = !context.getProperty(CONNECTIONS).isSet();
         collectAllInputPorts = !context.getProperty(INPUT_PORTS).isSet();
         collectAllOutputPorts = !context.getProperty(OUTPUT_PORTS).isSet();
-
     }
 
     @Override
@@ -399,7 +395,5 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             }
         }
         return "";
-
     }
-
 }
