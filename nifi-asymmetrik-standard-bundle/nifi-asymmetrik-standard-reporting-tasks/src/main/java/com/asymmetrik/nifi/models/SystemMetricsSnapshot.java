@@ -8,7 +8,6 @@ import java.util.Map;
 
 public class SystemMetricsSnapshot {
     private String clusterNodeIdentifier;
-    private String hostname;
     private String ipAddress;
     private ProcessGroupStatusMetric rootProcessGroupSnapshot;
     private List<ConnectionStatusMetric> connectionSnapshots = new ArrayList<>();
@@ -32,13 +31,6 @@ public class SystemMetricsSnapshot {
 
     public String getIpAddress() {
         return ipAddress;
-    }
-
-    public String getHostname() { return hostname; }
-
-    public SystemMetricsSnapshot setHostname(String hostname) {
-        this.hostname= hostname;
-        return this;
     }
 
     public SystemMetricsSnapshot setIpAddress(String ipAddress) {
