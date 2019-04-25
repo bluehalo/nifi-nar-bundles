@@ -1,6 +1,8 @@
 package com.asymmetrik.nifi.reporting;
 
 import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,12 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
-import com.amazonaws.util.EC2MetadataUtils;
-import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
-import com.amazonaws.services.ec2.model.Tag;
 
 import com.asymmetrik.nifi.models.ConnectionStatusMetric;
 import com.asymmetrik.nifi.models.PortStatusMetric;
@@ -29,6 +25,8 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.components.ValidationContext;
+import org.apache.nifi.components.ValidationResult;
 import org.apache.nifi.components.Validator;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.controller.status.ConnectionStatus;
@@ -113,7 +111,6 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             .addValidator(Validator.VALID)
             .build();
 
-    private AmazonEC2 ec2;
     private List<String> volumes;
     private List<String> processGroups;
     private List<String> remoteProcessGroups;
@@ -157,7 +154,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
 
             SystemMetricsSnapshot systemMetricsSnapshot = new SystemMetricsSnapshot()
                     .setClusterNodeIdentifier(context.getClusterNodeIdentifier())
-                    .setHostname(getHostname())
+                    .setIpAddress(getIpAddress())
                     .setRootProcessGroupSnapshot(new ProcessGroupStatusMetric(eventAccess.getControllerStatus()))
                     .setMachineMemory(computeMachineMemory())
                     .setJvmMetrics(populateJVMMetrics());
@@ -379,21 +376,26 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         return metrics;
     }
 
-    public String getHostname() {
-        ec2 = AmazonEC2ClientBuilder.standard().build();
-        //Get the Instance information using the Instance ID
-        DescribeInstancesRequest request =  new DescribeInstancesRequest()
-                .withInstanceIds(EC2MetadataUtils.getInstanceId());
-
-        for(Tag tag : ec2.describeInstances(request)
-                .getReservations().get(0)
-                .getInstances().get(0).getTags())   // Get all of the Tags for the Instance
-        {
-            //Return the Tag Name which is the EC2 Host Name
-            if(tag.getKey().equals("Name")){
-                return tag.getValue();
+    /**
+     * Converts IP address specified as byte[] to dot notation String equivalent
+     *
+     * @return String representation of ipAddress
+     */
+    public static String getIpAddress() {
+        try {
+            byte[] address = InetAddress.getLocalHost().getAddress();
+            if (address == null) {
+                return "";
             }
+
+            StringBuilder builder = new StringBuilder("");
+            for (byte b : address) {
+                builder.append(String.valueOf(b & 0xFF)).append('.');
+            }
+
+            return builder.deleteCharAt(builder.length() - 1).toString();
+        } catch (UnknownHostException uhe) {
+            return "";
         }
-        return "";
     }
 }

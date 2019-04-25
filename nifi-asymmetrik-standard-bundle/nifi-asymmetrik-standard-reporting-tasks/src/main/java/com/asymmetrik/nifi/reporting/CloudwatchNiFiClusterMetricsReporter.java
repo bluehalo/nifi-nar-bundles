@@ -120,16 +120,20 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
         namespace = context.getProperty(NAMESPACE).getValue();
         collectsMemory = context.getProperty(MEMORY).asBoolean();
         collectsJVMMetrics = context.getProperty(JVM).asBoolean();
+
         cloudWatch = AmazonCloudWatchClientBuilder.standard()
                 .withCredentials(getCredentials(context))
                 .build();
+
         dynamicDimensions = new ArrayList<>();
         context.getProperties().forEach((property, value) -> {
             // For each dynamic property, create a new dimension with that key/value pair
             if (property.isDynamic() && StringUtils.isNotBlank(value)) {
                 dynamicDimensions.add(new Dimension()
                         .withName(property.getDisplayName())
-                        .withValue(value)
+                        .withValue(context.getProperty(property)
+                                .evaluateAttributeExpressions()
+                                .getValue())
                 );
             }
         });
@@ -160,14 +164,6 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
     void publish(ReportingContext reportingContext, SystemMetricsSnapshot snapshot) {
 
         List<Dimension> dimensions = new ArrayList<>();
-
-        // Include the Host Name as a Dimension
-
-        //EC2 Host/Tag Name
-        dimensions.add(new Dimension()
-                .withName("Host Name")
-                .withValue(snapshot.getHostname())
-        );
 
         // Extra dimensions are created in startup and added here
         dimensions.addAll(dynamicDimensions);
