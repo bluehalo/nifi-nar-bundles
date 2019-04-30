@@ -35,6 +35,8 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <nifi.version>1.9.0</nifi.version>
 
+        <aws-java-sdk-cloudwatch.version>1.11.516</aws-java-sdk-cloudwatch.version>
+
         <commons-collections.version>3.2.1</commons-collections.version>
         <commons-io.version>2.6</commons-io.version>
         <commons-lang3.version>3.8.1</commons-lang3.version>
@@ -178,6 +180,13 @@
                 <artifactId>nifi-asymmetrik-mongo-service</artifactId>
                 <version>${project.version}</version>
             </dependency>
+
+            <dependency>
+                <groupId>com.amazonaws</groupId>
+                <artifactId>aws-java-sdk-cloudwatch</artifactId>
+                <version>${aws-java-sdk-cloudwatch.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>commons-collections</groupId>
                 <artifactId>commons-collections</artifactId>

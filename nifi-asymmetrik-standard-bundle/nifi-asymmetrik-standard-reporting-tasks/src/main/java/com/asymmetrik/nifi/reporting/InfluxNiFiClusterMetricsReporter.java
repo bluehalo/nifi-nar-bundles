@@ -111,9 +111,11 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
         influxRef.set(influxDb);
 
         globalTags = new ConcurrentHashMap<>();
-        for (Map.Entry<PropertyDescriptor, String> prop : context.getProperties().entrySet()) {
-            if (prop.getKey().isDynamic()) {
-                globalTags.put(prop.getKey().getDisplayName(), prop.getValue());
+        for (Map.Entry<PropertyDescriptor, String> entry : context.getProperties().entrySet()) {
+            PropertyDescriptor prop = entry.getKey();
+            if (prop.isDynamic()) {
+                String value = context.getProperty(prop).evaluateAttributeExpressions().getValue();
+                globalTags.put(prop.getDisplayName(), value);
             }
         }
     }
