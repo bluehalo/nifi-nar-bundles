@@ -18,6 +18,7 @@ com.asymmetrik.nifi.processors.AutoTerminator
 com.asymmetrik.nifi.processors.BatchWait
 com.asymmetrik.nifi.processors.CreateContent
 com.asymmetrik.nifi.processors.CreateJsonContent
+com.asymmetrik.nifi.processors.DecryptZipContent
 com.asymmetrik.nifi.processors.DelayProcessor
 com.asymmetrik.nifi.processors.FetchFileSplits
 com.asymmetrik.nifi.processors.GetWebpage
