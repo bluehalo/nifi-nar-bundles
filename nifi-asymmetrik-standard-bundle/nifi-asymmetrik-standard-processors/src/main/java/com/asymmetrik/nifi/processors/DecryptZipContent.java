@@ -87,13 +87,12 @@ public class DecryptZipContent extends AbstractProcessor {
             .build();
 
     @Override
-    public void onTrigger(ProcessContext context, final ProcessSession session) throws ProcessException {
+    public void onTrigger(ProcessContext context, final ProcessSession session) {
         FlowFile flowFile = session.get();
         if (null == flowFile) {
             return;
         }
 
-        // final List<FlowFile> flowFiles = new ArrayList<>();
         PropertyValue passwordProp = context.getProperty(PROP_ENCRYPTION_PASSWORD);
         final String password =
                 passwordProp.isSet() ? passwordProp.evaluateAttributeExpressions(flowFile).getValue() : null;
@@ -163,7 +162,7 @@ public class DecryptZipContent extends AbstractProcessor {
         }
 
         String zipFilePath = tempFile.getAbsolutePath();
-        zipParentDir = new File(zipFilePath.substring(0, zipFilePath.lastIndexOf(".")));
+        zipParentDir = new File(zipFilePath.substring(0, zipFilePath.lastIndexOf('.')));
         FileUtils.forceMkdir(zipParentDir);
 
         // Get the list of files from the zip
@@ -182,7 +181,7 @@ public class DecryptZipContent extends AbstractProcessor {
 
             // extract file into directory with same name as temporary zip file, minus the .zip extension
             zipFile.extractFile(fileHeader, zipParentDir.getAbsolutePath(), null,
-                    filename.substring(filename.lastIndexOf("/") + 1));
+                    filename.substring(filename.lastIndexOf('/') + 1));
         }
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();

@@ -18,7 +18,11 @@ package com.asymmetrik.nifi.processors.util;
 /**
  * @author Martin Matula (martin at alutam.com)
  */
-public class ZipUtil {
+public final class ZipUtil {
+    private ZipUtil() {
+        // empty
+    }
+
     static final int[] CRC_TABLE = new int[256];
     static final int DECRYPT_HEADER_SIZE = 12;
     static final int[] CFH_SIGNATURE = {0x50, 0x4b, 0x01, 0x02};
@@ -53,11 +57,11 @@ public class ZipUtil {
         return ((oldCrc >>> 8) ^ CRC_TABLE[(oldCrc ^ charAt) & 0xff]);
     }
 
-    static enum State {
+    enum State {
         SIGNATURE, FLAGS, COMPRESSED_SIZE, FN_LENGTH, EF_LENGTH, HEADER, DATA, TAIL, CRC
     }
 
-    static enum Section {
+    enum Section {
         FILE_HEADER, FILE_DATA, DATA_DESCRIPTOR
     }
 }
