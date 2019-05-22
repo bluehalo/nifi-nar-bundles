@@ -44,7 +44,7 @@ import net.lingala.zip4j.model.FileHeader;
 @EventDriven
 @SupportsBatching
 @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
-@Tags({"unzip", "zip", "decompress", "password", "decrypt"})
+@Tags({"asymmetrik", "unzip", "zip", "decompress", "password", "decrypt"})
 @CapabilityDescription(
         "Unzips incoming content, assuming it is the contents of a password-protected zip file. This processor "
                 + "can decrypt Regular password-protected zip files as well as AES-256 encrypted zip files. In which case the "
