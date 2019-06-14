@@ -35,6 +35,7 @@ com.asymmetrik.nifi.processors.mongo.StoreInMongo
 com.asymmetrik.nifi.processors.mongo.UpdateMongo
 com.asymmetrik.nifi.processors.elasticsearch.PutElasticsearchHttp
 com.asymmetrik.nifi.processors.PutScp
+com.asymmetrik.nifi.processors.RetryCounter
 com.asymmetrik.nifi.processors.RouteOnBackPressure
 com.asymmetrik.nifi.processors.RouteOnBitMask
 com.asymmetrik.nifi.processors.SplitDataFlow
