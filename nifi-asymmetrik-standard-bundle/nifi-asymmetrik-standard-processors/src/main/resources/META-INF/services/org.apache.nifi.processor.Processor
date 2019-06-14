@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 com.asymmetrik.nifi.processors.DelayProcessor
+com.asymmetrik.nifi.processors.AttributesToJsonContent
 com.asymmetrik.nifi.processors.AttributeTumblingWindow
 com.asymmetrik.nifi.processors.AutoTerminator
 com.asymmetrik.nifi.processors.BatchWait
