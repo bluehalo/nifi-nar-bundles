@@ -59,7 +59,7 @@ import org.influxdb.dto.Point;
 @DynamicProperty(
         name = "Field Key (string)",
         value = "Field Value (double)",
-        supportsExpressionLanguage = true,
+        expressionLanguageScope = ExpressionLanguageScope.FLOWFILE_ATTRIBUTES,
         description = "Specifies field key and their corresponding values. Field values are always assumed to be double precision floating-point numbers.")
 @CapabilityDescription("Writes to data to InfluxDB (https://docs.influxdata.com/influxdb/v1.3). This processor parses " +
         "dynamic properties as field key/values. It should be noted, that field values are assumed " +
