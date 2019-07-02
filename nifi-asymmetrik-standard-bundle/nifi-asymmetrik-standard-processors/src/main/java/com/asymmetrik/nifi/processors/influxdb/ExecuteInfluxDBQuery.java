@@ -1,7 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.asymmetrik.nifi.processors.influxdb;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -10,10 +28,14 @@ import java.util.regex.Pattern;
 import com.asymmetrik.nifi.services.influxdb.InfluxDatabaseService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.gson.Gson;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.SideEffectFree;
+import org.apache.nifi.annotation.behavior.WritesAttribute;
+import org.apache.nifi.annotation.behavior.WritesAttributes;
 import org.apache.nifi.annotation.configuration.DefaultSchedule;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
@@ -36,33 +58,34 @@ import org.influxdb.dto.QueryResult.Result;
 @SideEffectFree
 @DefaultSchedule(period = "10 sec")
 @Tags({"query", "get", "database", "influxdb", "influx", "db"})
+@WritesAttributes({
+        @WritesAttribute(attribute = "mime.type", description = "Sets the mime.type to application/json."),
+})
 @CapabilityDescription("Queries InfluxDB, generating a flowFile for each result found. It should " +
         "be noted that SELECT queries must include one of LIMIT, WHERE or GROUP BY clause.")
-public class QueryInfluxDB extends AbstractInfluxProcessor {
-    static final PropertyDescriptor QUERY_STRING = new PropertyDescriptor.Builder()
-            .name("Query String")
-            .displayName("Query String")
-            .description("The query string")
+public class ExecuteInfluxDBQuery extends AbstractInfluxProcessor {
+    static final PropertyDescriptor PROP_QUERY_STRING = new PropertyDescriptor.Builder()
+            .name("influxql.query")
+            .displayName("InfluxQL Query String")
+            .description("The InfluxDB query to execute.")
             .addValidator(new QueryStringValidator())
             .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .required(true)
             .build();
 
-    static final PropertyDescriptor TIME_UNIT = new PropertyDescriptor.Builder()
-            .name("Time Units")
-            .displayName("Precision")
-            .description("Precision of the results.")
-            .required(true)
-            .allowableValues("Nanoseconds", "Microseconds", "Milliseconds", "Seconds", "Minutes", "Hours", "Days")
-            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
-            .defaultValue("Milliseconds")
-            .build();
-
     private AtomicReference<InfluxDB> influxRef = new AtomicReference<>();
+    private Gson gson = new Gson();
+    private Query query;
+    private TimeUnit precision;
+    private Boolean splitResults;
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(INFLUX_DB_SERVICE, DATABASE_NAME, QUERY_STRING, TIME_UNIT);
+        return ImmutableList.of(
+                INFLUX_DB_SERVICE,
+                DATABASE_NAME,
+                PRECISION,
+                PROP_QUERY_STRING);
     }
 
     @OnScheduled
@@ -74,34 +97,52 @@ public class QueryInfluxDB extends AbstractInfluxProcessor {
         if (influxRef.get() == null) {
             getLogger().error("Unable to retrieve InfluxDB connection", new IllegalArgumentException("Unable to retrieve InfluxDB connection"));
         }
+
+        String database = context.getProperty(DATABASE_NAME).evaluateAttributeExpressions().getValue();
+        query = new Query(context.getProperty(PROP_QUERY_STRING).getValue(), database);
+        precision = TimeUnit.valueOf(context.getProperty(PRECISION).getValue().toUpperCase());
     }
 
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) {
-        String database = context.getProperty(DATABASE_NAME).evaluateAttributeExpressions().getValue();
-        Query query = new Query(context.getProperty(QUERY_STRING).getValue(), database);
-
-        TimeUnit precision = TimeUnit.valueOf(context.getProperty(TIME_UNIT).getValue().toUpperCase());
         QueryResult queryResult = influxRef.get().query(query, precision);
 
-        if (queryResult.hasError()) {
-            String message = queryResult.getError();
-            getLogger().error(message);
-            FlowFile flowFile = session.write(session.create(), outputStream -> outputStream.write(message.getBytes()));
-            session.transfer(flowFile, REL_FAILURE);
-            return;
+        List<FlowFile> failures = new ArrayList<>();
+        for (Result result : queryResult.getResults()) {
+            if (result.hasError()) {
+                final String json = gson.toJson(queryResult);
+                getLogger().error(result.getError());
+                failures.add(session.write(session.create(), outputStream -> outputStream.write(json.getBytes())));
+            }
+        }
+        if (!failures.isEmpty()) {
+            session.transfer(failures, REL_FAILURE);
         }
 
-        serializeResults(session, queryResult.getResults());
+        List<FlowFile> successes = new ArrayList<>();
+        for (Output output : processResults(queryResult.getResults())) {
+            final byte[] bytes = gson.toJson(output).getBytes(StandardCharsets.UTF_8);
+            FlowFile flowFile = session.create();
+            flowFile = session.putAttribute(flowFile, "mime.type", "application/json");
+            successes.add(session.write(flowFile, outputStream -> outputStream.write(bytes)));
+        }
+        if (!successes.isEmpty()) {
+            session.transfer(successes, REL_SUCCESS);
+        }
     }
 
-    private void serializeResults(ProcessSession session, List<Result> results) {
-        List<FlowFile> flowFiles = new ArrayList<>();
+    private List<Output> processResults(List<Result> results) {
+        List<Output> outputs = new ArrayList<>();
         for (Result result : results) {
-            FlowFile flowFile = session.write(session.create(), outputStream -> outputStream.write(result.toString().getBytes()));
-            flowFiles.add(flowFile);
+            if (CollectionUtils.isEmpty(result.getSeries())) {
+                continue;
+            }
+
+            for (QueryResult.Series series : result.getSeries()) {
+                outputs.add(new Output(series, precision));
+            }
         }
-        session.transfer(flowFiles, REL_SUCCESS);
+        return outputs;
     }
 
     @Override
@@ -147,6 +188,46 @@ public class QueryInfluxDB extends AbstractInfluxProcessor {
                     .explanation(reason)
                     .valid(valid)
                     .build();
+        }
+    }
+
+    /**
+     *
+     */
+    static class Output {
+
+        private final String measurement;
+        private final Map<String, String> tags;
+        private final List<String> columns;
+        private final List<List<Object>> values;
+        private final String precision;
+
+        public Output(QueryResult.Series series, TimeUnit precision) {
+            this.measurement = series.getName();
+            this.tags = series.getTags();
+            this.columns = series.getColumns();
+            this.values = series.getValues();
+            this.precision = precision.toString();
+        }
+
+        public String getMeasurement() {
+            return measurement;
+        }
+
+        public Map<String, String> getTags() {
+            return tags;
+        }
+
+        public List<String> getColumns() {
+            return columns;
+        }
+
+        public List<List<Object>> getValues() {
+            return values;
+        }
+
+        public String getPrecision() {
+            return precision;
         }
     }
 }

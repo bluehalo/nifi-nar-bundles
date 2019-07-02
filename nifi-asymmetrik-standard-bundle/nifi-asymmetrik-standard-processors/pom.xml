@@ -19,7 +19,7 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-asymmetrik-standard-bundle</artifactId>
-        <version>0.7.0</version>
+        <version>0.8.0</version>
     </parent>
 
     <artifactId>nifi-asymmetrik-standard-processors</artifactId>
@@ -71,7 +71,14 @@
             <artifactId>jzlib</artifactId>
             <scope>runtime</scope>
         </dependency>
-
+        <dependency>
+            <groupId>net.lingala.zip4j</groupId>
+            <artifactId>zip4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>

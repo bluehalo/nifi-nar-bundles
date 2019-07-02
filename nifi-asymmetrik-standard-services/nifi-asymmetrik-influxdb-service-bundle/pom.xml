@@ -17,7 +17,7 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-asymmetrik-standard-services</artifactId>
-        <version>0.7.0</version>
+        <version>0.8.0</version>
     </parent>
 
     <artifactId>nifi-asymmetrik-influxdb-service-bundle</artifactId>

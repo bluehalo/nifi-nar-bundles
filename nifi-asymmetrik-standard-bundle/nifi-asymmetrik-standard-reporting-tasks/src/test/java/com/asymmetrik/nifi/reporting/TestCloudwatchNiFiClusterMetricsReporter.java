@@ -91,7 +91,7 @@ public class TestCloudwatchNiFiClusterMetricsReporter {
                 .setProcessGroupSnapshots(Arrays.asList(processGroupStatusMetric));
 
         List<Dimension> dimensions = new ArrayList<>();
-        List<MetricDatum> cloudwatchMetrics = 
+        List<MetricDatum> cloudwatchMetrics =
                 metricsCloudwatchReporter.collectMeasurements(new Date(), metrics, dimensions);
 
         assertEquals(10, cloudwatchMetrics.size());
