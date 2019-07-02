@@ -19,6 +19,7 @@ package com.asymmetrik.nifi.processors.influxdb;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -72,16 +73,6 @@ public class ExecuteInfluxDBQuery extends AbstractInfluxProcessor {
             .required(true)
             .build();
 
-    static final PropertyDescriptor PROP_SPLIT_RESULTS = new PropertyDescriptor.Builder()
-            .name("results.split")
-            .displayName("Split results?")
-            .description("Set this to 'true' to split the results into separate JSON objects.")
-            .required(true)
-            .allowableValues("true", "false")
-            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
-            .defaultValue("false")
-            .build();
-
     private AtomicReference<InfluxDB> influxRef = new AtomicReference<>();
     private Gson gson = new Gson();
     private Query query;
@@ -94,8 +85,7 @@ public class ExecuteInfluxDBQuery extends AbstractInfluxProcessor {
                 INFLUX_DB_SERVICE,
                 DATABASE_NAME,
                 PRECISION,
-                PROP_QUERY_STRING,
-                PROP_SPLIT_RESULTS);
+                PROP_QUERY_STRING);
     }
 
     @OnScheduled
@@ -111,7 +101,6 @@ public class ExecuteInfluxDBQuery extends AbstractInfluxProcessor {
         String database = context.getProperty(DATABASE_NAME).evaluateAttributeExpressions().getValue();
         query = new Query(context.getProperty(PROP_QUERY_STRING).getValue(), database);
         precision = TimeUnit.valueOf(context.getProperty(PRECISION).getValue().toUpperCase());
-        splitResults = context.getProperty(PROP_SPLIT_RESULTS).asBoolean();
     }
 
     @Override
@@ -127,36 +116,33 @@ public class ExecuteInfluxDBQuery extends AbstractInfluxProcessor {
             }
         }
         if (!failures.isEmpty()) {
-            session.transfer(failures);
+            session.transfer(failures, REL_FAILURE);
         }
 
-        List<Result> results = queryResult.getResults();
-        List<FlowFile> flowFiles = new ArrayList<>();
-        if (splitResults) {
-            delegateSplitResults(session, flowFiles, results);
-        } else {
-            final byte[] bytes = gson.toJson(results).getBytes(StandardCharsets.UTF_8);
+        List<FlowFile> successes = new ArrayList<>();
+        for (Output output : processResults(queryResult.getResults())) {
+            final byte[] bytes = gson.toJson(output).getBytes(StandardCharsets.UTF_8);
             FlowFile flowFile = session.create();
             flowFile = session.putAttribute(flowFile, "mime.type", "application/json");
-            flowFiles.add(session.write(flowFile, outputStream -> outputStream.write(bytes)));
+            successes.add(session.write(flowFile, outputStream -> outputStream.write(bytes)));
         }
-
-        session.transfer(flowFiles, REL_SUCCESS);
+        if (!successes.isEmpty()) {
+            session.transfer(successes, REL_SUCCESS);
+        }
     }
 
-    private void delegateSplitResults(ProcessSession session, List<FlowFile> flowFiles, List<Result> results) {
+    private List<Output> processResults(List<Result> results) {
+        List<Output> outputs = new ArrayList<>();
         for (Result result : results) {
             if (CollectionUtils.isEmpty(result.getSeries())) {
                 continue;
             }
 
             for (QueryResult.Series series : result.getSeries()) {
-                final byte[] bytes = gson.toJson(series).getBytes(StandardCharsets.UTF_8);
-                FlowFile flowFile = session.create();
-                flowFile = session.putAttribute(flowFile, "mime.type", "application/json");
-                flowFiles.add(session.write(flowFile, outputStream -> outputStream.write(bytes)));
+                outputs.add(new Output(series, precision));
             }
         }
+        return outputs;
     }
 
     @Override
@@ -202,6 +188,46 @@ public class ExecuteInfluxDBQuery extends AbstractInfluxProcessor {
                     .explanation(reason)
                     .valid(valid)
                     .build();
+        }
+    }
+
+    /**
+     *
+     */
+    static class Output {
+
+        private final String measurement;
+        private final Map<String, String> tags;
+        private final List<String> columns;
+        private final List<List<Object>> values;
+        private final String precision;
+
+        public Output(QueryResult.Series series, TimeUnit precision) {
+            this.measurement = series.getName();
+            this.tags = series.getTags();
+            this.columns = series.getColumns();
+            this.values = series.getValues();
+            this.precision = precision.toString();
+        }
+
+        public String getMeasurement() {
+            return measurement;
+        }
+
+        public Map<String, String> getTags() {
+            return tags;
+        }
+
+        public List<String> getColumns() {
+            return columns;
+        }
+
+        public List<List<Object>> getValues() {
+            return values;
+        }
+
+        public String getPrecision() {
+            return precision;
         }
     }
 }
