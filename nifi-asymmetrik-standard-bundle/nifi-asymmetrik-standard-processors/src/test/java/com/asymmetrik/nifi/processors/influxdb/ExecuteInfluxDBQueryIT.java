@@ -150,16 +150,18 @@ public class ExecuteInfluxDBQueryIT {
 
     @Test
     public void testMeasurementNotFound() {
-        influxDbService.getInfluxDb().query(create);
+        InfluxDB influxDb = influxDbService.getInfluxDb();
+        influxDb.query(create);
+
+        influxDb.query(new Query("drop measurement ingress", "ExecuteInfluxDBQueryIT"));
+        influxDb.query(new Query("drop database ExecuteInfluxDBQueryIT", "ExecuteInfluxDBQueryIT"));
+        influxDb.query(new Query("create database ExecuteInfluxDBQueryIT", "ExecuteInfluxDBQueryIT"));
+
         runner.setProperty(ExecuteInfluxDBQuery.DATABASE_NAME, "ExecuteInfluxDBQueryIT");
         runner.setProperty(ExecuteInfluxDBQuery.PROP_QUERY_STRING, "SELECT * FROM ingress LIMIT 10");
-        runner.setProperty(ExecuteInfluxDBQuery.PROP_SPLIT_RESULTS, "false");
         runner.run();
-        runner.assertTransferCount(ExecuteInfluxDBQuery.REL_SUCCESS, 1);
-
-        final MockFlowFile out = runner.getFlowFilesForRelationship(ExecuteInfluxDBQuery.REL_SUCCESS).get(0);
-        assertEquals("[{}]", new String(out.toByteArray()));
-        influxDbService.getInfluxDb().query(drop);
+        runner.assertTransferCount(ExecuteInfluxDBQuery.REL_SUCCESS, 0);
+        runner.assertTransferCount(ExecuteInfluxDBQuery.REL_FAILURE, 0);
     }
 
     @Test
@@ -176,17 +178,17 @@ public class ExecuteInfluxDBQueryIT {
         String measurement = "ingress";
         BatchPoints points = BatchPoints.database("ExecuteInfluxDBQueryIT")
                 .point(Point.measurement(measurement).tag("tag1", "tag1").addField("v", 1.23).build())
+                .point(Point.measurement(measurement).tag("tag1", "tag1.1").addField("v", 3.14).build())
                 .build();
         influxDb.write(points);
 
         runner.setProperty(ExecuteInfluxDBQuery.DATABASE_NAME, "ExecuteInfluxDBQueryIT");
         runner.setProperty(ExecuteInfluxDBQuery.PROP_QUERY_STRING, "SELECT * FROM " + measurement + " LIMIT 10");
-        runner.setProperty(ExecuteInfluxDBQuery.PROP_SPLIT_RESULTS, "true");
         runner.run();
         runner.assertTransferCount(ExecuteInfluxDBQuery.REL_SUCCESS, 1);
 
         // Timestamp will differ from expected.
         final MockFlowFile out = runner.getFlowFilesForRelationship(ExecuteInfluxDBQuery.REL_SUCCESS).get(0);
-        assertEquals("{\"name\":\"ingress\",\"columns\":[\"time\",\"tag1\",\"v\"],\"values\":[[1.561998264547E12,\"tag1\",1.23]]}", new String(out.toByteArray()));
+        assertEquals("{\"measurement\":\"ingress\",\"columns\":[\"time\",\"tag1\",\"v\"],\"values\":[[1.561998264547E12,\"tag1\",1.23]]}", new String(out.toByteArray()));
     }
 }
