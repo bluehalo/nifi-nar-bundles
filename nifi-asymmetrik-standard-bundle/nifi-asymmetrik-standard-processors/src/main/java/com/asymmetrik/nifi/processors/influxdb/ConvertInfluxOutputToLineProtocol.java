@@ -49,8 +49,8 @@ import org.apache.nifi.stream.io.StreamUtils;
 @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
 @SupportsBatching
 @Tags({"put", "influxdb", "influx", "db", "write", "database", "measurement", "timeseries"})
-@CapabilityDescription("Converts the results of ExecuteInfluxDBQuery to the line protocol. This is intended to be used with the Apache PutInfluxDB processor" +
-        "to insert data into influxDB")
+@CapabilityDescription("Converts the results of Asymmetrik's ExecuteInfluxDBQuery to the line protocol. This is intended to be used with the Apache PutInfluxDB processor" +
+        "to insert data into influxDB. For more information of the line protocol, see https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/")
 public class ConvertInfluxOutputToLineProtocol extends AbstractInfluxProcessor {
 
     static final PropertyDescriptor PROP_TAG_NAMES = new PropertyDescriptor.Builder()
@@ -101,7 +101,6 @@ public class ConvertInfluxOutputToLineProtocol extends AbstractInfluxProcessor {
         try {
             List<String> lines = convertPayload(payload, tagCSV, fieldCSV);
             for (String line : lines) {
-                System.out.println(line);
                 byte[] bytes = line.getBytes(StandardCharsets.UTF_8);
                 FlowFile flowFile = session.write(session.clone(original), out -> out.write(bytes));
                 session.transfer(flowFile, REL_SUCCESS);
