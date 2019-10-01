@@ -45,7 +45,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 @PrimaryNodeOnly
 @TriggerWhenEmpty
 @SupportsBatching
-@Tags({"promontory", "s3", "list", "AWS"})
+@Tags({"s3", "list", "AWS"})
 @InputRequirement(InputRequirement.Requirement.INPUT_FORBIDDEN)
 @CapabilityDescription("Lists specified files from s3 gradually, unlike the ListS3 processor. Specification consists of a bucket, and " + 
     "optional prefix, start key and end key. Only allows the use of default AWS credentials."
