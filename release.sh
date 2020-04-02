@@ -49,6 +49,14 @@ increment_version() {
     echo "${a[0]}.${a[1]}.${a[2]}"
 }
 
+# Ensure git flow was initialized
+PREFIX=`git config --get gitflow.prefix.release`
+echo $PREFIX
+if [[ $PREFIX != 'release/' ]]; then
+  echo -e "   the git flow release prefix not set. Please run 'git flow init', accepting all defaults, before continuing.\n"
+  exit 1
+fi
+
 # Ensure that the working repo is clean
 if [[ -n "$(git status --untracked-files=no --porcelain)" ]]; then
     echo -e "\n**** WARNING ****"
@@ -104,9 +112,8 @@ while true; do
     esac
 done
 
-git checkout master
-
 # Perform a git flow release
+git checkout master
 git-flow release start ${VERSION}
 mvn versions:set -DnewVersion=${VERSION}
 git commit -a -m "Promote to release ${VERSION}"
@@ -121,8 +128,7 @@ git push origin rel-${VERSION}
 # Update develop with new version number
 git checkout develop
 mvn versions:set -DnewVersion=${SNAPSHOT_VERSION}
-git add *pom.xml "**/*pom.xml"
-git commit -m "Bumped to ${SNAPSHOT_VERSION}"
+git commit -a -m "Bumped develop to ${SNAPSHOT_VERSION}"
 
 # Push new SNAPSHOT to origin develop
 git push origin develop
