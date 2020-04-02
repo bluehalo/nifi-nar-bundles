@@ -45,7 +45,6 @@ import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
-import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.stream.io.StreamUtils;
 
@@ -164,55 +163,63 @@ public class DecryptZipContent extends AbstractProcessor {
     }
 
     private byte[] convertAes256Encryption(String password, byte[] buffer) throws IOException, ZipException {
-
         File tempFile = null;
         File zipParentDir = null;
 
-        // Write contents to disk
-        tempFile = File.createTempFile(this.getClass().getSimpleName() + "-", ".zip");
-        FileUtils.writeByteArrayToFile(tempFile, buffer, true);
+        try {
+            // Write contents to disk
+            tempFile = File.createTempFile(this.getClass().getSimpleName() + "-", ".zip");
+            FileUtils.writeByteArrayToFile(tempFile, buffer, true);
 
-        ZipFile zipFile = new ZipFile(tempFile);
-        if (zipFile.isEncrypted()) {
-            zipFile.setPassword(password);
-        }
-
-        String zipFilePath = tempFile.getAbsolutePath();
-        zipParentDir = new File(zipFilePath.substring(0, zipFilePath.lastIndexOf('.')));
-        FileUtils.forceMkdir(zipParentDir);
-
-        // Get the list of files from the zip
-        List fileHeaderList = zipFile.getFileHeaders();
-        for (Object headerList : fileHeaderList) {
-
-            // Get File headers
-            FileHeader fileHeader = (FileHeader) headerList;
-
-            // Skip Directories within the Zip File
-            if (fileHeader.isDirectory()) {
-                continue;
+            ZipFile zipFile = new ZipFile(tempFile);
+            if (zipFile.isEncrypted()) {
+                zipFile.setPassword(password);
             }
 
-            String filename = fileHeader.getFileName();
+            String zipFilePath = tempFile.getAbsolutePath();
+            zipParentDir = new File(zipFilePath.substring(0, zipFilePath.lastIndexOf('.')));
+            FileUtils.forceMkdir(zipParentDir);
 
-            // extract file into directory with same name as temporary zip file, minus the .zip extension
-            zipFile.extractFile(fileHeader, zipParentDir.getAbsolutePath(), null,
-                    filename.substring(filename.lastIndexOf('/') + 1));
-        }
+            // Get the list of files from the zip
+            List fileHeaderList = zipFile.getFileHeaders();
+            for (Object headerList : fileHeaderList) {
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
-            for (File file : zipParentDir.listFiles()) {
-                ZipEntry entry = new ZipEntry(file.getName());
-                entry.setSize(file.length());
-                zos.putNextEntry(entry);
-                zos.write(FileUtils.readFileToByteArray(file));
-                zos.closeEntry();
+                // Get File headers
+                FileHeader fileHeader = (FileHeader) headerList;
+
+                // Skip Directories within the Zip File
+                if (fileHeader.isDirectory()) {
+                    continue;
+                }
+
+                String filename = fileHeader.getFileName();
+
+                // extract file into directory with same name as temporary zip file, minus the .zip extension
+                zipFile.extractFile(fileHeader, zipParentDir.getAbsolutePath(), null,
+                        filename.substring(filename.lastIndexOf('/') + 1));
             }
-            tempFile.delete();
-            FileUtils.deleteDirectory(zipParentDir);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+                for (File file : zipParentDir.listFiles()) {
+                    ZipEntry entry = new ZipEntry(file.getName());
+                    entry.setSize(file.length());
+                    zos.putNextEntry(entry);
+                    zos.write(FileUtils.readFileToByteArray(file));
+                    zos.closeEntry();
+                }
+            }
+
+            return baos.toByteArray();
+
+        } finally {
+            if (tempFile != null) {
+                tempFile.delete();
+            }
+            if (zipParentDir != null) {
+                FileUtils.deleteDirectory(zipParentDir);
+            }
         }
-        return baos.toByteArray();
     }
 
     @Override

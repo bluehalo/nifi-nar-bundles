@@ -335,6 +335,25 @@ public class RouteOnBitMaskTest {
         validate(out, "x", binary("01010"));
     }
 
+    @Test
+    public void testModifyPropertyDescriptor() {
+        String routeMask = "1335";
+
+        runner.setProperty(RouteOnBitMask.ATTRIBUTE_NAME, "routeMask");
+        runner.setProperty(RouteOnBitMask.FLIP_BIT, "false");
+        runner.setProperty("enrich", "0");
+        runner.setProperty("harvest", "0");
+        // modify existing
+        runner.setProperty("enrich", "1024");
+        runner.setProperty("harvest", "512");
+
+        runner.enqueue("x", ImmutableMap.of("routeMask", routeMask));
+        runner.run();
+
+        runner.assertTransferCount("enrich", 1);
+        runner.assertTransferCount("harvest", 0);
+    }
+
     private void validate(MockFlowFile flowFile, String expectedContent, String expectedFooValue) {
         String content = new String(flowFile.toByteArray(), StandardCharsets.UTF_8);
         assertEquals(expectedContent, content);
