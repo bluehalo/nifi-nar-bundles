@@ -22,10 +22,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableList;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.nifi.annotation.behavior.DynamicProperty;
 import org.apache.nifi.annotation.behavior.DynamicRelationship;
 import org.apache.nifi.annotation.behavior.InputRequirement;
@@ -41,6 +45,7 @@ import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.util.StandardValidators;
+import org.apache.nifi.util.Tuple;
 
 @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
 @SideEffectFree
@@ -82,7 +87,7 @@ public class RouteOnBitMask extends AbstractProcessor {
             .build();
 
     // dynamic relationships and their corresponding bit mask values
-    private final Map<Relationship, Long> relationshipMasks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, MutablePair<Relationship, Long>> routeMasks = new ConcurrentHashMap<>();
 
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) {
@@ -110,7 +115,7 @@ public class RouteOnBitMask extends AbstractProcessor {
             // evaluated attribute value to test mask against
             final long value = Long.valueOf(bitValue);
 
-            for (Map.Entry<Relationship, Long> entry : relationshipMasks.entrySet()) {
+            for (MutablePair<Relationship, Long> entry : routeMasks.values()) {
                 // the mask associated with this relationship
                 final long mask = entry.getValue();
 
@@ -150,11 +155,21 @@ public class RouteOnBitMask extends AbstractProcessor {
             return;
         }
 
-        Relationship entry = new Relationship.Builder().name(descriptor.getName()).build();
-        if (newValue == null) {         // old property deleted
-            relationshipMasks.remove(entry);
-        } else if (oldValue == null) {  // new property
-            relationshipMasks.put(entry, Long.valueOf(newValue));
+        MutablePair<Relationship, Long> existing = routeMasks.remove(descriptor.getName());
+
+        if (newValue != null && oldValue == null) {
+            // a new dynamic property was added
+            routeMasks.put(descriptor.getName(),
+                    MutablePair.of(
+                            new Relationship.Builder().name(descriptor.getName()).build(),
+                            Long.valueOf(newValue)
+                    )
+            );
+        } else if (newValue != null && existing != null) {
+            // an existing dynamic property's value changed
+
+            existing.setRight(Long.valueOf(newValue));
+            routeMasks.put(descriptor.getName(), existing);
         }
     }
 
@@ -177,7 +192,7 @@ public class RouteOnBitMask extends AbstractProcessor {
 
     @Override
     public Set<Relationship> getRelationships() {
-        Set<Relationship> relationships = new HashSet<>(relationshipMasks.keySet());
+        Set<Relationship> relationships = routeMasks.values().stream(). map(MutablePair::getLeft).collect(Collectors.toSet());
         relationships.add(UNMATCHED);
         relationships.add(FAILURE);
         return relationships;
