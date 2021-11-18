@@ -28,8 +28,7 @@ import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.PrimaryNodeOnly;
 import org.apache.nifi.annotation.behavior.Stateful;
-import org.apache.nifi.annotation.behavior.SupportsBatching;
-import org.apache.nifi.annotation.behavior.TriggerWhenEmpty;
+import org.apache.nifi.annotation.behavior.TriggerSerially;
 import org.apache.nifi.annotation.behavior.WritesAttribute;
 import org.apache.nifi.annotation.behavior.WritesAttributes;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
@@ -55,13 +54,12 @@ import org.apache.nifi.ssl.SSLContextService.ClientAuth;
 
 
 @PrimaryNodeOnly
-@TriggerWhenEmpty
-@SupportsBatching
-@Tags({"asymmetrik", "s3", "list", "AWS"})
+@TriggerSerially
+@Tags({"asymmetrik", "s3", "list", "aws"})
 @InputRequirement(InputRequirement.Requirement.INPUT_FORBIDDEN)
 @CapabilityDescription("Lists specified files from s3 gradually, unlike the ListS3 processor. Specification consists of a bucket, and " + 
-    "optional prefix, start key and end key. Only allows the use of default AWS credentials."
-    )
+    "optional prefix, start key and end key. A job snapshot is stored in the processor state, and needs to be cleared to restart listing."
+)
 @Stateful(description = "Stores the key of the last file listed by the processor, the completion state and the latest configuration.", scopes = {Scope.CLUSTER})
 // @formatter:off
 @WritesAttributes({
@@ -158,6 +156,7 @@ public class ListS3Batch extends AbstractProcessor {
             .description("Determines whether or not to return the owner of each object when fetching from s3.")
             .allowableValues("true", "false")
             .defaultValue("false")
+            .required(true)
             .build();
 
     static final PropertyDescriptor AWS_REGION = new PropertyDescriptor.Builder()
@@ -234,7 +233,8 @@ public class ListS3Batch extends AbstractProcessor {
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
         final String region = context.getProperty(AWS_REGION).getValue();
-        final String bucketName  = context.getProperty(S3_BUCKET)
+        final boolean fetchOwner = context.getProperty(FETCH_OWNER).asBoolean();
+        final String bucketName = context.getProperty(S3_BUCKET)
                 .evaluateAttributeExpressions()
                 .getValue();
         final String prefix = context.getProperty(S3_PREFIX)
@@ -246,9 +246,11 @@ public class ListS3Batch extends AbstractProcessor {
         final String endKey = context.getProperty(S3_END_PREFIX)
                 .evaluateAttributeExpressions()
                 .getValue();
-        final boolean fetchOwner = context.getProperty(FETCH_OWNER).asBoolean();
+        final int batchSize = context.getProperty(BATCH_SIZE)
+                .evaluateAttributeExpressions()
+                .asInteger();
 
-        final String lastConfig = getItemFromContext(context,LAST_CONFIG);
+        final String lastConfig = getItemFromContext(context, LAST_CONFIG);
         final String config = region + "," + bucketName + "," + prefix + "," + startKey + "," + endKey + "," + fetchOwner;
         final boolean propsHaveNotChanged = config.equals(lastConfig);
 
@@ -269,10 +271,8 @@ public class ListS3Batch extends AbstractProcessor {
                 .withBucketName(bucketName)
                 .withPrefix(prefix)
                 .withStartAfter(startAfter)
-                .withMaxKeys(context.getProperty(BATCH_SIZE)
-                        .evaluateAttributeExpressions()
-                        .asInteger())
-                .withFetchOwner(context.getProperty(FETCH_OWNER).asBoolean());
+                .withMaxKeys(batchSize)
+                .withFetchOwner(fetchOwner);
 
         // Execute the listS3 request
         final ListObjectsV2Result listResponse = client.listObjectsV2(request);
