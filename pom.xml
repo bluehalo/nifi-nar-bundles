@@ -35,7 +35,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <nifi.version>1.9.2</nifi.version>
 
-        <awssdk.version>1.12.112</awssdk.version>
+        <awssdk.version>1.11.571</awssdk.version>
 
         <commons-collections.version>3.2.1</commons-collections.version>
         <commons-compress.version>1.19</commons-compress.version>
@@ -110,17 +110,6 @@
                 <groupId>org.apache.nifi</groupId>
                 <artifactId>nifi-aws-service-api</artifactId>
                 <version>${nifi.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.nifi</groupId>
-                <artifactId>nifi-aws-service</artifactId>
-                <version>${nifi.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.nifi</groupId>
-                <artifactId>nifi-aws-nar</artifactId>
-                <version>${nifi.version}</version>
-                <type>nar</type>
             </dependency>
             <dependency>
                 <groupId>org.apache.nifi</groupId>
