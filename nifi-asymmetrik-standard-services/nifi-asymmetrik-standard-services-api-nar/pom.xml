@@ -46,7 +46,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
-            <artifactId>nifi-standard-services-api-nar</artifactId>
+            <artifactId>nifi-aws-service-api-nar</artifactId>
             <version>${nifi.version}</version>
             <type>nar</type>
         </dependency>
