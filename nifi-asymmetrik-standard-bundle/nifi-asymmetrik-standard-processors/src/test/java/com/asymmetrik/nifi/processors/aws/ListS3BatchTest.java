@@ -242,6 +242,57 @@ public class ListS3BatchTest {
         runner.getStateManager().assertStateEquals(OBJECTS_PROCESSED, "3", Scope.CLUSTER);
         runner.getStateManager().assertStateSet(COMPLETED_AT, Scope.CLUSTER);
     }
+
+    @Test
+    public void testStartAndEndKeyNonAscii() {
+        
+        final int batchSize = 3;
+        
+        runner.setProperty(S3_PREFIX, "one/ßƒ˚˜©®/");
+        runner.setProperty(S3_START_PREFIX, "01/B");
+        runner.setProperty(S3_END_PREFIX, "03/B");
+        runner.setProperty(BATCH_SIZE, String.valueOf(batchSize));
+        
+        final List<S3ObjectSummary> allS3Obj = makeS3ObjectSummarys(ImmutableList.of("one/"), ImmutableList.of("ßƒ˚˜©®/"), ImmutableList.of("01/","02/","03/","04/"), ImmutableList.of("A","B"));
+        setupMockClient(allS3Obj, batchSize);
+        for (int i = 0; i < allS3Obj.size(); ++i) {
+            runner.run();
+        }
+        final List<MockFlowFile> flowFiles = runner.getFlowFilesForRelationship(SUCCESS);
+        final List<String> actKeys = flowFiles.stream()
+                .map((x) -> x.getAttributes().get("filename"))
+                .collect(Collectors.toList());
+        
+        List<S3ObjectSummary> expS3Obj = allS3Obj.stream()
+                .filter((x) -> "one/ßƒ˚˜©®/01/B".compareTo(x.getKey()) < 0 & x.getKey()
+                .compareTo("one/ßƒ˚˜©®/03/B") < 0)
+                .collect(Collectors.toList());
+        final List<String> expKeys = expS3Obj.stream()
+                .map((x) -> x.getKey())
+                .collect(Collectors.toList());
+                
+        assertEquals(expKeys, actKeys);
+        runner.getStateManager().assertStateEquals(OBJECTS_PROCESSED, "3", Scope.CLUSTER);
+        runner.getStateManager().assertStateSet(COMPLETED_AT, Scope.CLUSTER);
+    }
+
+    @Test
+    public void testNoResults() {
+        final int batchSize = 3;
+
+        runner.setProperty(S3_PREFIX, "one/abc/");
+        runner.setProperty(S3_START_PREFIX, "01/B");
+        runner.setProperty(S3_END_PREFIX, "03/B");
+        runner.setProperty(BATCH_SIZE, String.valueOf(batchSize));
+        setupMockClient(ImmutableList.of(), batchSize);
+        runner.run();
+
+        runner.assertQueueEmpty();
+        runner.assertTransferCount(SUCCESS, 0);
+        runner.getStateManager().assertStateEquals(LAST_CONFIG, "us-east-1,test-bucket,one/abc/,01/B,03/B,false", Scope.CLUSTER);
+        runner.getStateManager().assertStateEquals(OBJECTS_PROCESSED, "0", Scope.CLUSTER);
+        runner.getStateManager().assertStateEquals(LAST_ELEMENT_KEY, null, Scope.CLUSTER);
+    }
     
     private void setupMockClient(List<S3ObjectSummary> allS3Obj, int batchSize) {
         when(mockClient.listObjectsV2(any(ListObjectsV2Request.class))).thenAnswer(
