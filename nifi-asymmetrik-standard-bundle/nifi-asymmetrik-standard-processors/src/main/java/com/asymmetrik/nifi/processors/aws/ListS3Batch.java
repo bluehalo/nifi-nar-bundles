@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.PrimaryNodeOnly;
@@ -278,7 +279,7 @@ public class ListS3Batch extends AbstractProcessor {
         final ListObjectsV2Result listResponse = client.listObjectsV2(request);
         List<S3ObjectSummary> s3obj = listResponse.getObjectSummaries();
         
-        if (s3obj.isEmpty()) {
+        if (CollectionUtils.isEmpty(s3obj)) {
             persistState(context, null, config, true, 0);
             return;
         }
