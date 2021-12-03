@@ -19,7 +19,7 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-asymmetrik-standard-bundle</artifactId>
-        <version>0.9.0</version>
+        <version>0.10.0</version>
     </parent>
 
     <artifactId>nifi-asymmetrik-standard-processors</artifactId>
@@ -37,6 +37,10 @@
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-ssl-context-service-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-aws-service-api</artifactId>
         </dependency>
         <dependency>
             <groupId>com.asymmetrik.nifi</groupId>
@@ -96,6 +100,11 @@
             <artifactId>mongo-java-driver</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+        </dependency>
+
         <!-- TESTING -->
         <dependency>
             <groupId>org.apache.nifi</groupId>
@@ -119,8 +128,7 @@
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-            <version>1.9.5</version>
+            <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
