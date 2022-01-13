@@ -7,14 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
 
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.http.conn.ssl.SdkTLSSocketFactory;
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
@@ -163,8 +161,8 @@ public class ListS3Batch extends AbstractProcessor {
     static final PropertyDescriptor AWS_REGION = new PropertyDescriptor.Builder()
             .name("S3 Bucket AWS Region")
             .description("Determines which region that the S3 bucket is in. Default is us-east-1.")
-            .allowableValues(getRegions())
             .defaultValue("us-east-1")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .required(true)
             .build();
 
@@ -400,12 +398,6 @@ public class ListS3Batch extends AbstractProcessor {
         } catch (IOException ioe) {
             throw new ProcessException(ioe);
         }
-    }
-    
-    private static Set<String> getRegions() {
-        return Stream.of(Regions.values())
-                .map(Regions::getName)
-                .collect(Collectors.toSet());
     }
 
     private AWSCredentialsProvider getCredentials(final ProcessContext context) {
