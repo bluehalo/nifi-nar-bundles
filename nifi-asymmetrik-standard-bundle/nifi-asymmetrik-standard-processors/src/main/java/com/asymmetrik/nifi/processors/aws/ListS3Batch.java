@@ -162,6 +162,7 @@ public class ListS3Batch extends AbstractProcessor {
             .name("S3 Bucket AWS Region")
             .description("Determines which region that the S3 bucket is in. Default is us-east-1.")
             .defaultValue("us-east-1")
+						.expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .required(true)
             .build();
