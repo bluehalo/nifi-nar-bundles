@@ -29,6 +29,7 @@ nb-configuration.xml
 .DS_Store
 .metadata
 .recommenders
+pom.xml.versionsBackup
 
 # Intellij
 .idea/
@@ -36,3 +37,4 @@ nb-configuration.xml
 *.iws
 *~
 
+.vscode/

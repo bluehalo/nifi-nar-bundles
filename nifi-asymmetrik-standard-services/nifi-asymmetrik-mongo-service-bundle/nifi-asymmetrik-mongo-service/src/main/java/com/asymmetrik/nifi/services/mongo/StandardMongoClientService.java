@@ -27,10 +27,11 @@ import org.apache.nifi.components.ValidationContext;
 import org.apache.nifi.components.ValidationResult;
 import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
+import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.InitializationException;
-import org.apache.nifi.security.util.SslContextFactory;
+import org.apache.nifi.security.util.ClientAuth;
 import org.apache.nifi.ssl.SSLContextService;
 
 @Tags({"asymmetrik", "mongo", "database", "connection"})
@@ -45,7 +46,7 @@ public class StandardMongoClientService extends AbstractControllerService implem
             .displayName("Mongo Hosts")
             .description("A comma-separated list of mongo hosts, eg. e01sv01:27017, e01sv02:27017, e01sv03:27017")
             .defaultValue("localhost:27017")
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.FLOWFILE_ATTRIBUTES)
             .required(true)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
@@ -75,7 +76,7 @@ public class StandardMongoClientService extends AbstractControllerService implem
                     + "Possible values are REQUIRED, WANT, NONE. This property is only used when an SSL Context "
                     + "has been defined and enabled.")
             .required(false)
-            .allowableValues(SSLContextService.ClientAuth.values())
+            .allowableValues(ClientAuth.values())
             .defaultValue("REQUIRED")
             .build();
 
@@ -98,7 +99,7 @@ public class StandardMongoClientService extends AbstractControllerService implem
     public static final PropertyDescriptor USERNAME = new PropertyDescriptor.Builder()
             .name("Username")
             .description("Username used while attempting to authenticate.")
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .required(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
@@ -114,7 +115,7 @@ public class StandardMongoClientService extends AbstractControllerService implem
     public static final PropertyDescriptor AUTH_DATABASE = new PropertyDescriptor.Builder()
             .name("Authentication Database")
             .description("The name of the authenticating database to connect to.")
-            .expressionLanguageSupported(true)
+            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .required(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
@@ -239,15 +240,15 @@ public class StandardMongoClientService extends AbstractControllerService implem
         final SSLContext sslContext;
 
         if (sslService != null) {
-            final SSLContextService.ClientAuth clientAuth;
+            final ClientAuth clientAuth;
             if (StringUtils.isBlank(rawClientAuth)) {
-                clientAuth = SSLContextService.ClientAuth.REQUIRED;
+                clientAuth = ClientAuth.REQUIRED;
             } else {
                 try {
-                    clientAuth = SSLContextService.ClientAuth.valueOf(rawClientAuth);
+                    clientAuth = ClientAuth.valueOf(rawClientAuth);
                 } catch (final IllegalArgumentException iae) {
                     throw new ProviderCreationException(String.format("Unrecognized client auth '%s'. Possible values are [%s]",
-                            rawClientAuth, StringUtils.join(SslContextFactory.ClientAuth.values(), ", ")));
+                            rawClientAuth, StringUtils.join(ClientAuth.values(), ", ")));
                 }
             }
             sslContext = sslService.createSSLContext(clientAuth);
