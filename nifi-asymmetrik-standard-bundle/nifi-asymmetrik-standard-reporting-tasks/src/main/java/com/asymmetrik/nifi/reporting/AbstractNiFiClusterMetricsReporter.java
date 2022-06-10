@@ -19,14 +19,13 @@ import com.asymmetrik.nifi.models.ProcessorStatusMetric;
 import com.asymmetrik.nifi.models.RemoteProcessGroupStatusMetric;
 import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
 import com.asymmetrik.nifi.models.influxdb.MetricFields;
+import com.google.common.collect.ImmutableMap;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
-import org.apache.nifi.components.ValidationContext;
-import org.apache.nifi.components.ValidationResult;
 import org.apache.nifi.components.Validator;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.controller.status.ConnectionStatus;
@@ -147,7 +146,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
 
     @Override
     public void onTrigger(final ReportingContext context) {
-        NiFiProperties nifiProperties = NiFiProperties.createBasicNiFiProperties(null, null);
+        NiFiProperties nifiProperties = NiFiProperties.createBasicNiFiProperties(null, ImmutableMap.of());
 
         try {
             EventAccess eventAccess = context.getEventAccess();
