@@ -31,29 +31,29 @@
         <mongo.uri>mongodb://127.0.0.1:27017</mongo.uri>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <nifi.version>1.15.2</nifi.version>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <nifi.version>1.15.3</nifi.version>
 
         <awssdk.version>1.11.571</awssdk.version>
 
-        <commons-collections.version>3.2.1</commons-collections.version>
-        <commons-compress.version>1.19</commons-compress.version>
-        <commons-io.version>2.6</commons-io.version>
+        <commons-collections.version>3.2.2</commons-collections.version>
+        <commons-compress.version>1.21</commons-compress.version>
+        <commons-io.version>2.7</commons-io.version>
         <commons-lang3.version>3.9</commons-lang3.version>
-        <gson.version>2.8.5</gson.version>
+        <gson.version>2.8.9</gson.version>
         <guava.version>18.0</guava.version>
 
         <!-- Unable to update to 2.15 due to okhttp3 error -->
         <!-- @OnEnabled method due to java.lang.NoSuchMethodError: -->
         <!-- okhttp3.HttpUrl.get(Ljava/lang/String;)Lokhttp3/HttpUrl; -->
-        <influxdb-java.version>2.14</influxdb-java.version>
-        <jackson-core.version>2.9.9</jackson-core.version>
-        <jackson-databind.version>2.9.10.3</jackson-databind.version>
+        <influxdb-java.version>2.17</influxdb-java.version>
+        <jackson-core.version>2.12.6</jackson-core.version>
+        <jackson-databind.version>2.12.6.1</jackson-databind.version>
         <jsch.version>0.1.55</jsch.version>
         <json-path.version>2.4.0</json-path.version>
-        <jsoup.version>1.8.3</jsoup.version>
-        <junit.version>4.12</junit.version>
+        <jsoup.version>1.14.2</jsoup.version>
+        <junit.version>4.13.1</junit.version>
         <jzlib.version>1.1.3</jzlib.version>
         <metrics-core.version>2.2.0</metrics-core.version>
         <mockito-core.version>4.0.0</mockito-core.version>
@@ -212,11 +212,6 @@
                 <version>${json-path.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-core</artifactId>
-                <version>${jackson-core.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>com.jcraft</groupId>
                 <artifactId>jsch</artifactId>
                 <version>${jsch.version}</version>
@@ -231,6 +226,11 @@
                 <groupId>com.google.code.gson</groupId>
                 <artifactId>gson</artifactId>
                 <version>${gson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>

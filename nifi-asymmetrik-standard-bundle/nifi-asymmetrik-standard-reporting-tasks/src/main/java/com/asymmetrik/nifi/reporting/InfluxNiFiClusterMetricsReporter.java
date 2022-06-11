@@ -99,8 +99,8 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
+    private final AtomicReference<InfluxDB> influxRef = new AtomicReference<>();
     private ConcurrentHashMap<String, String> globalTags;
-    private AtomicReference<InfluxDB> influxRef = new AtomicReference<>();
 
     @OnScheduled
     public void startup(ConfigurationContext context) {
@@ -163,7 +163,8 @@ public class InfluxNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
                 PROCESSORS,
                 CONNECTIONS,
                 INPUT_PORTS,
-                OUTPUT_PORTS
+                OUTPUT_PORTS,
+                INCLUDE_FILE_DESCRIPTOR_METRICS
         );
     }
 

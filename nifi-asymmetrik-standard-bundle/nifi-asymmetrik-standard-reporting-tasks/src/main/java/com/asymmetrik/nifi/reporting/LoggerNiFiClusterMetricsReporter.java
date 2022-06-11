@@ -33,7 +33,16 @@ public class LoggerNiFiClusterMetricsReporter extends AbstractNiFiClusterMetrics
 
     @Override
     public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(LOG_LEVEL, VOLUMES, PROCESS_GROUPS, REMOTE_PROCESS_GROUPS, PROCESSORS, CONNECTIONS, INPUT_PORTS, OUTPUT_PORTS);
+        return ImmutableList.of(
+                LOG_LEVEL,
+                VOLUMES,
+                PROCESS_GROUPS,
+                REMOTE_PROCESS_GROUPS,
+                PROCESSORS,
+                CONNECTIONS,
+                INPUT_PORTS,
+                OUTPUT_PORTS,
+                INCLUDE_FILE_DESCRIPTOR_METRICS);
     }
 
     @Override
