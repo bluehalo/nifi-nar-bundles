@@ -47,7 +47,7 @@
         <!-- Unable to update to 2.15 due to okhttp3 error -->
         <!-- @OnEnabled method due to java.lang.NoSuchMethodError: -->
         <!-- okhttp3.HttpUrl.get(Ljava/lang/String;)Lokhttp3/HttpUrl; -->
-        <influxdb-java.version>2.17</influxdb-java.version>
+        <influxdb-java.version>2.22</influxdb-java.version>
         <jackson-core.version>2.12.6</jackson-core.version>
         <jackson-databind.version>2.12.6.1</jackson-databind.version>
         <jsch.version>0.1.55</jsch.version>
