@@ -73,7 +73,6 @@ public class AutoTerminator extends AbstractProcessor {
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) {
         session.remove(session.get(batchSize));
-        session.commit();
     }
 
     @Override

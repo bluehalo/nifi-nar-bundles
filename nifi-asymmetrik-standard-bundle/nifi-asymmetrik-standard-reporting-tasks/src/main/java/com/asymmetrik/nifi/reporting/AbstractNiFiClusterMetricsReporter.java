@@ -19,14 +19,13 @@ import com.asymmetrik.nifi.models.ProcessorStatusMetric;
 import com.asymmetrik.nifi.models.RemoteProcessGroupStatusMetric;
 import com.asymmetrik.nifi.models.SystemMetricsSnapshot;
 import com.asymmetrik.nifi.models.influxdb.MetricFields;
+import com.google.common.collect.ImmutableMap;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
-import org.apache.nifi.components.ValidationContext;
-import org.apache.nifi.components.ValidationResult;
 import org.apache.nifi.components.Validator;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.controller.status.ConnectionStatus;
@@ -110,6 +109,17 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
             .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
             .addValidator(Validator.VALID)
             .build();
+    static final PropertyDescriptor INCLUDE_FILE_DESCRIPTOR_METRICS = new PropertyDescriptor.Builder()
+            .name("File Descriptors?")
+            .displayName("File Descriptors?")
+            .description("Set this to true to capture file descriptor metrics. However, this may throw an exception in Java 11 because " +
+                    "the jigsaw project changed necessary functionality.  In order for this to work properly with Java 11 and additional " +
+                    "JVM argument will need to be set in NiFi's bootstrap.conf file, eg." +
+                    "\njava.arg.100=--add-opens=jdk.management/com.sun.management.internal=ALL-UNNAMED\n.")
+            .required(false)
+            .allowableValues("true", "false")
+            .defaultValue("false")
+            .build();
 
     private List<String> volumes;
     private List<String> processGroups;
@@ -124,6 +134,7 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
     private boolean collectAllConnections;
     private boolean collectAllInputPorts;
     private boolean collectAllOutputPorts;
+    private boolean collectFileDescriptors;
 
     abstract void publish(ReportingContext reportingContext, SystemMetricsSnapshot systemMetricsSnapshot);
 
@@ -143,11 +154,12 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         collectAllConnections = !context.getProperty(CONNECTIONS).isSet();
         collectAllInputPorts = !context.getProperty(INPUT_PORTS).isSet();
         collectAllOutputPorts = !context.getProperty(OUTPUT_PORTS).isSet();
+        collectFileDescriptors = context.getProperty(INCLUDE_FILE_DESCRIPTOR_METRICS).asBoolean();
     }
 
     @Override
     public void onTrigger(final ReportingContext context) {
-        NiFiProperties nifiProperties = NiFiProperties.createBasicNiFiProperties(null, null);
+        NiFiProperties nifiProperties = NiFiProperties.createBasicNiFiProperties(null, ImmutableMap.of());
 
         try {
             EventAccess eventAccess = context.getEventAccess();
@@ -343,7 +355,9 @@ abstract class AbstractNiFiClusterMetricsReporter extends AbstractReportingTask 
         metrics.put(MetricFields.JVM_NON_HEAP_USAGE, virtualMachineMetrics.nonHeapUsage());
         metrics.put(MetricFields.JVM_THREAD_COUNT, (double) virtualMachineMetrics.threadCount());
         metrics.put(MetricFields.JVM_DAEMON_THREAD_COUNT, (double) virtualMachineMetrics.daemonThreadCount());
-        metrics.put(MetricFields.JVM_FILE_DESCRIPTOR_USAGE, virtualMachineMetrics.fileDescriptorUsage());
+        if (collectFileDescriptors) {
+            metrics.put(MetricFields.JVM_FILE_DESCRIPTOR_USAGE, virtualMachineMetrics.fileDescriptorUsage());
+        }
 
         for (Map.Entry<Thread.State, Double> entry : virtualMachineMetrics.threadStatePercentages().entrySet()) {
             final int normalizedValue = (int) (100 * (entry.getValue() == null ? 0 : entry.getValue()));

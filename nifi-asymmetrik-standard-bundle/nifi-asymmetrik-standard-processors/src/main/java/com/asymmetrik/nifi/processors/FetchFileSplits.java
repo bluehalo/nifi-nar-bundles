@@ -303,53 +303,53 @@ public class FetchFileSplits extends AbstractProcessor {
         // It is critical that we commit the session before we perform the Completion Strategy. Otherwise, we could have a case where we
         // ingest the file, delete/move the file, and then NiFi is restarted before the session is committed. That would result in data loss.
         // As long as we commit the session right here, before we perform the Completion Strategy, we are safe.
-        session.commit();
-
-        // Attempt to perform the Completion Strategy action
-        Exception completionFailureException = null;
-        if (COMPLETION_DELETE.getValue().equalsIgnoreCase(completionStrategy)) {
-            // convert to path and use Files.delete instead of file.delete so that if we fail, we know why
-            try {
-                delete(file);
-            } catch (final IOException ioe) {
-                completionFailureException = ioe;
-            }
-        } else if (COMPLETION_MOVE.getValue().equalsIgnoreCase(completionStrategy)) {
-            final File targetDirectory = new File(targetDirectoryName);
-            final File targetFile = new File(targetDirectory, file.getName());
-            try {
-                if (targetFile.exists()) {
-                    final String conflictStrategy = context.getProperty(CONFLICT_STRATEGY).getValue();
-                    if (CONFLICT_KEEP_INTACT.getValue().equalsIgnoreCase(conflictStrategy)) {
-                        // don't move, just delete the original
-                        Files.delete(file.toPath());
-                    } else if (CONFLICT_RENAME.getValue().equalsIgnoreCase(conflictStrategy)) {
-                        // rename to add a random UUID but keep the file extension if it has one.
-                        final String simpleFilename = targetFile.getName();
-                        final String newName;
-                        if (simpleFilename.contains(".")) {
-                            newName = StringUtils.substringBeforeLast(simpleFilename, ".") + "-" + UUID.randomUUID().toString() + "." + StringUtils.substringAfterLast(simpleFilename, ".");
-                        } else {
-                            newName = simpleFilename + "-" + UUID.randomUUID().toString();
-                        }
-
-                        move(file, new File(targetDirectory, newName), false);
-                    } else if (CONFLICT_REPLACE.getValue().equalsIgnoreCase(conflictStrategy)) {
-                        move(file, targetFile, true);
-                    }
-                } else {
-                    move(file, targetFile, false);
+        session.commitAsync(() -> {
+            // Attempt to perform the Completion Strategy action
+            Exception completionFailureException = null;
+            if (COMPLETION_DELETE.getValue().equalsIgnoreCase(completionStrategy)) {
+                // convert to path and use Files.delete instead of file.delete so that if we fail, we know why
+                try {
+                    delete(file);
+                } catch (final IOException ioe) {
+                    completionFailureException = ioe;
                 }
-            } catch (final IOException ioe) {
-                completionFailureException = ioe;
+            } else if (COMPLETION_MOVE.getValue().equalsIgnoreCase(completionStrategy)) {
+                final File targetDirectory = new File(targetDirectoryName);
+                final File targetFile = new File(targetDirectory, file.getName());
+                try {
+                    if (targetFile.exists()) {
+                        final String conflictStrategy = context.getProperty(CONFLICT_STRATEGY).getValue();
+                        if (CONFLICT_KEEP_INTACT.getValue().equalsIgnoreCase(conflictStrategy)) {
+                            // don't move, just delete the original
+                            Files.delete(file.toPath());
+                        } else if (CONFLICT_RENAME.getValue().equalsIgnoreCase(conflictStrategy)) {
+                            // rename to add a random UUID but keep the file extension if it has one.
+                            final String simpleFilename = targetFile.getName();
+                            final String newName;
+                            if (simpleFilename.contains(".")) {
+                                newName = StringUtils.substringBeforeLast(simpleFilename, ".") + "-" + UUID.randomUUID().toString() + "." + StringUtils.substringAfterLast(simpleFilename, ".");
+                            } else {
+                                newName = simpleFilename + "-" + UUID.randomUUID().toString();
+                            }
+    
+                            move(file, new File(targetDirectory, newName), false);
+                        } else if (CONFLICT_REPLACE.getValue().equalsIgnoreCase(conflictStrategy)) {
+                            move(file, targetFile, true);
+                        }
+                    } else {
+                        move(file, targetFile, false);
+                    }
+                } catch (final IOException ioe) {
+                    completionFailureException = ioe;
+                }
             }
-        }
-
-        // Handle completion failures
-        if (completionFailureException != null) {
-            getLogger().warn("Successfully fetched the content from {} for {} but failed to perform Completion Action due to {}; routing to success",
-                    new Object[] {file, flowFile, completionFailureException}, completionFailureException);
-        }
+    
+            // Handle completion failures
+            if (completionFailureException != null) {
+                getLogger().warn("Successfully fetched the content from {} for {} but failed to perform Completion Action due to {}; routing to success",
+                        new Object[] {file, flowFile, completionFailureException}, completionFailureException);
+            }
+        });
     }
 
     private void writeAndTransfer(final ProcessSession session, final FlowFile originalFlowFile, final String headerLine, final StringBuffer sb) {
