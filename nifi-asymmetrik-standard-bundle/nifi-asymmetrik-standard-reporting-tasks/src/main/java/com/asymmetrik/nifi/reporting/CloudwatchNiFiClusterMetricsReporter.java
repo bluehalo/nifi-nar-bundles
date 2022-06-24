@@ -112,7 +112,7 @@ public class CloudwatchNiFiClusterMetricsReporter extends AbstractNiFiClusterMet
     public final List<PropertyDescriptor> getSupportedPropertyDescriptors() {
         return ImmutableList.of(CREDENTIALS_FILE, ACCESS_KEY, SECRET_KEY, NAMESPACE, MEMORY, JVM,
                                 PROCESS_GROUPS, REMOTE_PROCESS_GROUPS, PROCESSORS, CONNECTIONS,
-                                INPUT_PORTS, OUTPUT_PORTS, VOLUMES);
+                                INPUT_PORTS, OUTPUT_PORTS, VOLUMES, INCLUDE_FILE_DESCRIPTOR_METRICS);
     }
 
     @OnScheduled

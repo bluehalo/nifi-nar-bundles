@@ -7,9 +7,9 @@ This project contains assorted [Apache NiFi](http://nifi.apache.org/) components
 
 # Requirements
 
-* Apache NiFi 1.15.2 or newer
-* JDK 1.8 or newer
-* [Apache Maven](http://maven.apache.org/) 3.1.0 or newer
+* Apache NiFi 1.15.3 or newer
+* JDK 11
+* [Apache Maven](http://maven.apache.org/) 3.5.0 or newer
 
 # Getting Started
 
