@@ -20,11 +20,11 @@
         <version>0.12.0</version>
     </parent>
 
-    <artifactId>nifi-asymmetrik-influxdb-service-bundle</artifactId>
+    <artifactId>nifi-asymmetrik-influxdb2-service-bundle</artifactId>
     <packaging>pom</packaging>
 
     <modules>
-        <module>nifi-asymmetrik-influxdb-service</module>
-        <module>nifi-asymmetrik-influxdb-service-nar</module>
+        <module>nifi-asymmetrik-influxdb2-service</module>
+        <module>nifi-asymmetrik-influxdb2-service-nar</module>
     </modules>
 </project>

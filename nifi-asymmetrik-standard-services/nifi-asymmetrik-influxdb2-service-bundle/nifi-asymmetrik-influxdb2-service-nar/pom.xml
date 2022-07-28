@@ -18,41 +18,28 @@
 
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
-        <artifactId>nifi-asymmetrik-influxdb-service-bundle</artifactId>
+        <artifactId>nifi-asymmetrik-influxdb2-service-bundle</artifactId>
         <version>0.12.0</version>
     </parent>
 
-    <artifactId>nifi-asymmetrik-influxdb-service</artifactId>
-    <packaging>jar</packaging>
+    <artifactId>nifi-asymmetrik-influxdb2-service-nar</artifactId>
+    <packaging>nar</packaging>
+
+    <properties>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <source.skip>true</source.skip>
+    </properties>
 
     <dependencies>
         <dependency>
             <groupId>com.asymmetrik.nifi</groupId>
-            <artifactId>nifi-asymmetrik-influxdb-service-api</artifactId>
+            <artifactId>nifi-asymmetrik-standard-services-api-nar</artifactId>
+            <type>nar</type>
         </dependency>
         <dependency>
-            <groupId>org.apache.nifi</groupId>
-            <artifactId>nifi-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.nifi</groupId>
-            <artifactId>nifi-processor-utils</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.nifi</groupId>
-            <artifactId>nifi-mock</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
+            <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-asymmetrik-influxdb2-service</artifactId>
         </dependency>
     </dependencies>
+
 </project>

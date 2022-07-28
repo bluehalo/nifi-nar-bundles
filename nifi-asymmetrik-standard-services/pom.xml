@@ -19,7 +19,7 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-asymmetrik-nar-bundles</artifactId>
-        <version>0.11.0</version>
+        <version>0.12.0</version>
     </parent>
 
     <artifactId>nifi-asymmetrik-standard-services</artifactId>
@@ -30,6 +30,8 @@
         <module>nifi-asymmetrik-cache-service-bundle</module>
         <module>nifi-asymmetrik-influxdb-service-api</module>
         <module>nifi-asymmetrik-influxdb-service-bundle</module>
+        <module>nifi-asymmetrik-influxdb2-service-api</module>
+        <module>nifi-asymmetrik-influxdb2-service-bundle</module>
         <module>nifi-asymmetrik-mongo-service-api</module>
         <module>nifi-asymmetrik-mongo-service-bundle</module>
         <module>nifi-asymmetrik-standard-services-api-nar</module>

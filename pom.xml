@@ -18,7 +18,7 @@
 
     <groupId>com.asymmetrik.nifi</groupId>
     <artifactId>nifi-asymmetrik-nar-bundles</artifactId>
-    <version>0.11.0</version>
+    <version>0.12.0</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -48,6 +48,7 @@
         <!-- @OnEnabled method due to java.lang.NoSuchMethodError: -->
         <!-- okhttp3.HttpUrl.get(Ljava/lang/String;)Lokhttp3/HttpUrl; -->
         <influxdb-java.version>2.22</influxdb-java.version>
+        <influxdb-client-java.version>3.1.0</influxdb-client-java.version>
         <jackson-core.version>2.12.6</jackson-core.version>
         <jackson-databind.version>2.12.6.1</jackson-databind.version>
         <jsch.version>0.1.55</jsch.version>
@@ -137,6 +138,12 @@
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
+                <artifactId>nifi-asymmetrik-influxdb2-service-nar</artifactId>
+                <version>${project.version}</version>
+                <type>nar</type>
+            </dependency>
+            <dependency>
+                <groupId>com.asymmetrik.nifi</groupId>
                 <artifactId>nifi-asymmetrik-mongo-service-nar</artifactId>
                 <version>${project.version}</version>
                 <type>nar</type>
@@ -174,7 +181,17 @@
             </dependency>
             <dependency>
                 <groupId>com.asymmetrik.nifi</groupId>
+                <artifactId>nifi-asymmetrik-influxdb2-service-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.asymmetrik.nifi</groupId>
                 <artifactId>nifi-asymmetrik-influxdb-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.asymmetrik.nifi</groupId>
+                <artifactId>nifi-asymmetrik-influxdb2-service</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -256,6 +273,11 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
                 <version>${commons-lang3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.influxdb</groupId>
+                <artifactId>influxdb-client-java</artifactId>
+                <version>${influxdb-client-java.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.influxdb</groupId>
