@@ -210,7 +210,7 @@ public class PutInfluxDBv2 extends AbstractProcessor {
         List<Point> points = new ArrayList<>();
         PropertyValue timestampProp = context.getProperty(PROP_TIMESTAMP);
 
-        long now = Instant.now().getEpochSecond();
+        long now = Instant.now().toEpochMilli();
         for (FlowFile flowfile : flowFiles) {
             Map<String, Object> fields = getFields(flowfile);
             if (fields.isEmpty()) {
