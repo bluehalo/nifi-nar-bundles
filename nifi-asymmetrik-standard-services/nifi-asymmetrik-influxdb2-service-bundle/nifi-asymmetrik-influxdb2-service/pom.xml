@@ -19,7 +19,7 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-asymmetrik-influxdb2-service-bundle</artifactId>
-        <version>0.13.0-SNAPSHOT</version>
+        <version>0.12.1</version>
     </parent>
 
     <artifactId>nifi-asymmetrik-influxdb2-service</artifactId>
