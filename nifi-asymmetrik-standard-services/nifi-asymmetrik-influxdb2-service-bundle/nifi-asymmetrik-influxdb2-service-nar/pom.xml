@@ -18,23 +18,28 @@
 
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
-        <artifactId>nifi-asymmetrik-nar-bundles</artifactId>
+        <artifactId>nifi-asymmetrik-influxdb2-service-bundle</artifactId>
         <version>0.12.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>nifi-asymmetrik-standard-services</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>nifi-asymmetrik-influxdb2-service-nar</artifactId>
+    <packaging>nar</packaging>
 
-    <modules>
-        <module>nifi-asymmetrik-cache-service-api</module>
-        <module>nifi-asymmetrik-cache-service-bundle</module>
-        <module>nifi-asymmetrik-influxdb-service-api</module>
-        <module>nifi-asymmetrik-influxdb-service-bundle</module>
-        <module>nifi-asymmetrik-influxdb2-service-api</module>
-        <module>nifi-asymmetrik-influxdb2-service-bundle</module>
-        <module>nifi-asymmetrik-mongo-service-api</module>
-        <module>nifi-asymmetrik-mongo-service-bundle</module>
-        <module>nifi-asymmetrik-standard-services-api-nar</module>
-    </modules>
+    <properties>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <source.skip>true</source.skip>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-asymmetrik-standard-services-api-nar</artifactId>
+            <type>nar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-asymmetrik-influxdb2-service</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>

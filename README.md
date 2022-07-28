@@ -8,7 +8,7 @@ This project contains assorted [Apache NiFi](http://nifi.apache.org/) components
 # Requirements
 
 * Apache NiFi 1.15.3 or newer
-* JDK 11
+* JDK 11 or newer
 * [Apache Maven](http://maven.apache.org/) 3.5.0 or newer
 
 # Getting Started
@@ -18,14 +18,14 @@ This project contains assorted [Apache NiFi](http://nifi.apache.org/) components
 $ mvn clean package
 ```
 
-This will create several .nar files, and collect them under `nifi-assembly/target/asymmetrik-nifi-nars-0.11.0-SNAPSHOT`. For convenience, this will also package all .nar files into a single distribution tar.gz file under `nifi-assembly/target/`.
+This will create several .nar files, and collect them under `nifi-assembly/target/asymmetrik-nifi-nars-0.12.0-SNAPSHOT`. For convenience, this will also package all .nar files into a single distribution tar.gz file under `nifi-assembly/target/`.
 
 ```
 $ ls -1 nifi-assembly/target/asymmetrik-nifi-nars-*
-nifi-assembly/target/asymmetrik-nifi-nars-0.11.0-SNAPSHOT.tar.gz
+nifi-assembly/target/asymmetrik-nifi-nars-0.12.0-SNAPSHOT.tar.gz
 
-nifi-assembly/target/asymmetrik-nifi-nars-0.11.0-SNAPSHOT:
-asymmetrik-nifi-nars-0.11.0-SNAPSHOT
+nifi-assembly/target/asymmetrik-nifi-nars-0.12.0-SNAPSHOT:
+asymmetrik-nifi-nars-0.12.0-SNAPSHOT
 ```
 ## Tests Dependencies
 
@@ -48,7 +48,7 @@ For example:
 
 ```
 nifi.nar.library.directory=./lib
-nifi.nar.library.directory.ext1=/path/to/asymm-nifi-nars/dist/target/asymmetrik-nifi-nars-0.11.0-SNAPSHOT/asymmetrik-nifi-nars-0.11.0-SNAPSHOT
+nifi.nar.library.directory.ext1=/path/to/asymm-nifi-nars/dist/target/asymmetrik-nifi-nars-0.12.0-SNAPSHOT/asymmetrik-nifi-nars-0.12.0-SNAPSHOT
 ```
 
 Then start NiFi as you normally would:

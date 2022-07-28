@@ -52,6 +52,10 @@
         </dependency>
         <dependency>
             <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-asymmetrik-influxdb2-service</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.asymmetrik.nifi</groupId>
             <artifactId>nifi-asymmetrik-mongo-service-api</artifactId>
         </dependency>
         <dependency>

@@ -45,6 +45,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>com.asymmetrik.nifi</groupId>
+            <artifactId>nifi-asymmetrik-influxdb2-service-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.influxdb</groupId>
             <artifactId>influxdb-java</artifactId>
         </dependency>
