@@ -18,23 +18,23 @@
 
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
-        <artifactId>nifi-asymmetrik-nar-bundles</artifactId>
+        <artifactId>nifi-asymmetrik-standard-services</artifactId>
         <version>0.12.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>nifi-asymmetrik-standard-services</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>nifi-asymmetrik-influxdb2-service-api</artifactId>
+    <packaging>jar</packaging>
 
-    <modules>
-        <module>nifi-asymmetrik-cache-service-api</module>
-        <module>nifi-asymmetrik-cache-service-bundle</module>
-        <module>nifi-asymmetrik-influxdb-service-api</module>
-        <module>nifi-asymmetrik-influxdb-service-bundle</module>
-        <module>nifi-asymmetrik-influxdb2-service-api</module>
-        <module>nifi-asymmetrik-influxdb2-service-bundle</module>
-        <module>nifi-asymmetrik-mongo-service-api</module>
-        <module>nifi-asymmetrik-mongo-service-bundle</module>
-        <module>nifi-asymmetrik-standard-services-api-nar</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
 
+        <dependency>
+            <groupId>com.influxdb</groupId>
+            <artifactId>influxdb-client-java</artifactId>
+        </dependency>
+    </dependencies>
 </project>
