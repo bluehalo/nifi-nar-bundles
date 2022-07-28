@@ -73,7 +73,7 @@ public class InfluxV2NiFiClusterMetricsReporter extends AbstractNiFiClusterMetri
 
     @OnScheduled
     public void startup(ConfigurationContext context) {
-        InfluxDBClient influxClient = context.getProperty(PROP_INFLUXDB_SERVICE)
+        influxClient = context.getProperty(PROP_INFLUXDB_SERVICE)
                 .asControllerService(InfluxClientApi.class)
                 .getInfluxDb();
 
@@ -98,9 +98,7 @@ public class InfluxV2NiFiClusterMetricsReporter extends AbstractNiFiClusterMetri
         // add dynamic property tags
         tags.putAll(globalTags);
 
-        // Add data points
-
-
+        // Collect data points
         WritePrecision precision = WritePrecision.fromValue(reportingContext.getProperty(PROP_PRECISION).getValue());
         Instant now = Instant.now();
         List<Point> points = collectMeasurements(now, tags, precision, systemMetricsSnapshot);
