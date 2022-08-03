@@ -23,6 +23,7 @@ import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
+import com.opencsv.CSVParserBuilder;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -42,8 +43,10 @@ import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.util.StandardValidators;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @SuppressWarnings("Duplicates")
 @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
@@ -98,7 +101,9 @@ public class PutInfluxDBv2 extends AbstractProcessor {
     static final PropertyDescriptor PROP_TAGS = new PropertyDescriptor.Builder()
             .name("tags")
             .displayName("Tag Key/Value CSV")
-            .description("Key-value tags containing metadata. Conceptually tags are indexed columns in a table. Format expected: <tag-key>=<tag-value>,...")
+            .description("Key-value tags containing metadata. Conceptually tags are indexed columns in a table. Format expected: <tag-key>=<tag-value>,..." +
+                    "Warning: Due to the way CSVParser is implemented, if a key-value pair contains any inner quotes, it's not guaranteed that inner quote's " +
+                    "corresponding outer quote will not get stripped.")
             .required(false)
             .expressionLanguageSupported(ExpressionLanguageScope.FLOWFILE_ATTRIBUTES)
             .addValidator(new KeyValueStringValidator())
@@ -175,7 +180,7 @@ public class PutInfluxDBv2 extends AbstractProcessor {
         }
 
         if (dynamicFieldValues.isEmpty()) {
-            getLogger().error("At least on field key/value pair must be defined using dynamic properties");
+            getLogger().error("At least one field key/value pair must be defined using dynamic properties");
             session.transfer(flowFiles, REL_FAILURE);
             context.yield();
             return;
@@ -280,47 +285,79 @@ public class PutInfluxDBv2 extends AbstractProcessor {
     }
 
     /**
-     *
+     * Key Value CSV Validator/Parser
      */
     static class KeyValueStringValidator implements Validator {
+        private static final CSVParserBuilder parserBuilder = new CSVParserBuilder().withIgnoreLeadingWhiteSpace(true);
+
         @Override
         public ValidationResult validate(final String subject, final String input, final ValidationContext context) {
-            return parse(input) == null ?
-                    new ValidationResult.Builder()
-                            .subject(subject)
-                            .input(input)
-                            .valid(false)
-                            .explanation("Unable to parse string '" + input + "'. Expected format is key1=value1, key2=value2, ...")
-                            .build() :
-                    new ValidationResult.Builder()
+            List<String> invalids;
+            try {
+                invalids = Arrays.stream(parserBuilder.build()
+                        .parseLine(input))
+                        .filter(s -> KeyValueStringValidator.split(s) == null)
+                        .collect(Collectors.toList());
+
+                if (invalids.isEmpty()) {
+                    return new ValidationResult.Builder()
                             .subject(subject)
                             .input(input)
                             .valid(true)
                             .build();
+                }
+            } catch (Exception e) {
+                // ignore, handled below
+            }
+
+            return new ValidationResult.Builder()
+                    .subject(subject)
+                    .input(input)
+                    .valid(false)
+                    .explanation("Unable to parse string '" + input + "'. Expected format is key1=value1, key2=value2, ...")
+                    .build();
         }
 
         /**
          * Parses our tag and field comma delimited key value pair strings
          *
          * @param str The string to parse
-         * @return null or error otherwise Map of key value pairs
+         * @return Map of key value pairs
          */
         public static Map<String, String> parse(String str) {
-            Map<String, String> result = new HashMap<>();
-            if (StringUtils.isBlank(str)) {
-                return result;
+            if (str == null) {
+                return new HashMap<>();
             }
 
-            String[] keyValuePair = str.split(",");
-            for (String pair : keyValuePair) {
-                String[] keyValue = pair.split("=");
-                if (keyValue.length != 2) {
-                    return null;
-                }
-                result.put(keyValue[0].trim(), keyValue[1].trim());
+            try {
+                return Arrays.stream(parserBuilder.build()
+                        .parseLine(str))
+                        .map(KeyValueStringValidator::split)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toMap(a -> a[0], a -> a[1]));
+
+            } catch (IOException e) {
+                return new HashMap<>();
+            }
+        }
+
+        /**
+         * Splits s into an array of size 2 where index position 0 is left of equal sign and position 1 is right of equal sign
+         * @param s The string to split
+         * @return array of size 2 or null for invalid input
+         */
+        private static String[] split(String s) {
+            final int found = s.indexOf('=');
+            if (found == -1) {
+                return null;
             }
 
-            return result;
+            final String left = s.substring(0, found).trim();
+            final String right = s.substring(found + 1).trim();
+
+            return StringUtils.isAnyEmpty(left, right)
+                    ? null
+                    : new String[]{ left, right };
         }
     }
 }
