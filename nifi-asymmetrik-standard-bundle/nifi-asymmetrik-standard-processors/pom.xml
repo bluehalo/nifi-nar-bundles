@@ -19,7 +19,7 @@
     <parent>
         <groupId>com.asymmetrik.nifi</groupId>
         <artifactId>nifi-asymmetrik-standard-bundle</artifactId>
-        <version>0.12.2</version>
+        <version>0.12.3</version>
     </parent>
 
     <artifactId>nifi-asymmetrik-standard-processors</artifactId>
@@ -110,6 +110,10 @@
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongo-java-driver</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.opencsv</groupId>
+            <artifactId>opencsv</artifactId>
         </dependency>
 
         <dependency>
