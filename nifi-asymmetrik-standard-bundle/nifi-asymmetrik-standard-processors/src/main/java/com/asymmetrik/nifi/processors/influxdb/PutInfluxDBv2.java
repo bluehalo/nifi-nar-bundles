@@ -346,7 +346,8 @@ public class PutInfluxDBv2 extends AbstractProcessor {
         }
 
         /**
-         * Splits s into an array of size 2 where index position 0 is left of equal sign and position 1 is right of equal sign
+         * Splits s into an array of size 2 where index position 0 is left of equal sign and position 1 is right of equal sign.
+         * Both parts (the key and value) of the split must be non blank otherwise returns null
          * @param s The string to split
          * @return array of size 2 or null for invalid input
          */
