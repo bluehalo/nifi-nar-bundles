@@ -18,7 +18,7 @@
 
     <groupId>com.asymmetrik.nifi</groupId>
     <artifactId>nifi-asymmetrik-nar-bundles</artifactId>
-    <version>0.12.3</version>
+    <version>0.12.4</version>
     <packaging>pom</packaging>
 
     <modules>
