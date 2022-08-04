@@ -292,6 +292,10 @@ public class PutInfluxDBv2 extends AbstractProcessor {
 
         @Override
         public ValidationResult validate(final String subject, final String input, final ValidationContext context) {
+            if (context.isExpressionLanguageSupported(subject) && context.isExpressionLanguagePresent(input)) {
+                return (new ValidationResult.Builder()).subject(subject).input(input).explanation("Expression Language Present").valid(true).build();
+            }
+
             List<String> invalids;
             try {
                 invalids = Arrays.stream(parserBuilder.build()
