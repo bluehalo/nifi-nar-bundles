@@ -68,6 +68,14 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
             .addValidator(Validator.VALID)
             .build();
 
+    private static final PropertyDescriptor PROP_ENABLE_GZIP = new PropertyDescriptor.Builder()
+            .name("Enable Gzip")
+            .displayName("Enable gzip compression")
+            .description("Enable gzip to speed up writes to InfluxDB and reduce network bandwidth")
+            .allowableValues(Boolean.TRUE.toString(), Boolean.FALSE.toString())
+            .defaultValue(Boolean.TRUE.toString())
+            .build();
+
     private static final PropertyDescriptor PROP_LOG_LEVEL = new PropertyDescriptor.Builder()
             .name("log_level")
             .displayName("Log Level")
@@ -96,7 +104,13 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
             options = options.logLevel(LogLevel.valueOf(context.getProperty(PROP_LOG_LEVEL).getValue().toUpperCase()));
         }
 
-        influxRef.set(InfluxDBClientFactory.create(options.build()));
+        InfluxDBClient client = InfluxDBClientFactory.create(options.build());
+
+        if (context.getProperty(PROP_ENABLE_GZIP).asBoolean()) {
+            client.enableGzip();
+        }
+
+        influxRef.set(client);
     }
 
     @OnDisabled
@@ -114,6 +128,6 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(PROP_URL, PROP_TOKEN, PROP_CONNECT_TIMEOUT, PROP_READ_TIMEOUT, PROP_LOG_LEVEL);
+        return ImmutableList.of(PROP_URL, PROP_TOKEN, PROP_CONNECT_TIMEOUT, PROP_READ_TIMEOUT, PROP_ENABLE_GZIP, PROP_LOG_LEVEL);
     }
 }
