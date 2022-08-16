@@ -16,7 +16,6 @@ import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnDisabled;
 import org.apache.nifi.annotation.lifecycle.OnEnabled;
 import org.apache.nifi.components.PropertyDescriptor;
-import org.apache.nifi.components.Validator;
 import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.expression.ExpressionLanguageScope;
@@ -57,7 +56,7 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
             .description("Max wait time for connection to remote service.")
             .required(true)
             .defaultValue("5 secs")
-            .addValidator(Validator.VALID)
+            .addValidator(StandardValidators.TIME_PERIOD_VALIDATOR)
             .build();
 
     private static final PropertyDescriptor PROP_READ_TIMEOUT = new PropertyDescriptor.Builder()
@@ -65,7 +64,15 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
             .description("Max wait time for response from remote service.")
             .required(true)
             .defaultValue("10 secs")
-            .addValidator(Validator.VALID)
+            .addValidator(StandardValidators.TIME_PERIOD_VALIDATOR)
+            .build();
+
+    private static final PropertyDescriptor PROP_WRITE_TIMEOUT = new PropertyDescriptor.Builder()
+            .name("Write Timeout")
+            .description("Max wait time for request from remote service.")
+            .required(true)
+            .defaultValue("10 secs")
+            .addValidator(StandardValidators.TIME_PERIOD_VALIDATOR)
             .build();
 
     private static final PropertyDescriptor PROP_ENABLE_GZIP = new PropertyDescriptor.Builder()
@@ -97,6 +104,7 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
                 .okHttpClient(new OkHttpClient.Builder()
                         .connectTimeout(context.getProperty(PROP_CONNECT_TIMEOUT).asTimePeriod(TimeUnit.SECONDS), TimeUnit.SECONDS)
                         .readTimeout(context.getProperty(PROP_READ_TIMEOUT).asTimePeriod(TimeUnit.SECONDS), TimeUnit.SECONDS)
+                        .writeTimeout(context.getProperty(PROP_WRITE_TIMEOUT).asTimePeriod(TimeUnit.SECONDS), TimeUnit.SECONDS)
                         .followRedirects(true)
                 );
 
@@ -128,6 +136,6 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(PROP_URL, PROP_TOKEN, PROP_CONNECT_TIMEOUT, PROP_READ_TIMEOUT, PROP_ENABLE_GZIP, PROP_LOG_LEVEL);
+        return ImmutableList.of(PROP_URL, PROP_TOKEN, PROP_CONNECT_TIMEOUT, PROP_READ_TIMEOUT, PROP_WRITE_TIMEOUT, PROP_ENABLE_GZIP, PROP_LOG_LEVEL);
     }
 }
