@@ -1,6 +1,7 @@
 package com.asymmetrik.nifi.services.influxdb2;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.google.common.collect.ImmutableList;
@@ -8,12 +9,14 @@ import com.google.common.collect.ImmutableList;
 import com.influxdb.LogLevel;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
+import com.influxdb.client.InfluxDBClientOptions;
+import okhttp3.OkHttpClient;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnDisabled;
 import org.apache.nifi.annotation.lifecycle.OnEnabled;
 import org.apache.nifi.components.PropertyDescriptor;
-import org.apache.nifi.components.PropertyValue;
+import org.apache.nifi.components.Validator;
 import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.expression.ExpressionLanguageScope;
@@ -49,6 +52,22 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
+    private static final PropertyDescriptor PROP_CONNECT_TIMEOUT = new PropertyDescriptor.Builder()
+            .name("Connection Timeout")
+            .description("Max wait time for connection to remote service.")
+            .required(true)
+            .defaultValue("5 secs")
+            .addValidator(Validator.VALID)
+            .build();
+
+    private static final PropertyDescriptor PROP_READ_TIMEOUT = new PropertyDescriptor.Builder()
+            .name("Read Timeout")
+            .description("Max wait time for response from remote service.")
+            .required(true)
+            .defaultValue("10 secs")
+            .addValidator(Validator.VALID)
+            .build();
+
     private static final PropertyDescriptor PROP_LOG_LEVEL = new PropertyDescriptor.Builder()
             .name("log_level")
             .displayName("Log Level")
@@ -64,25 +83,27 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
 
     @OnEnabled
     public void onEnabled(final ConfigurationContext context) {
-        PropertyValue urlProp = context.getProperty(PROP_URL);
-        PropertyValue token = context.getProperty(PROP_TOKEN);
+        InfluxDBClientOptions.Builder options = InfluxDBClientOptions.builder()
+                .url(context.getProperty(PROP_URL).evaluateAttributeExpressions().getValue())
+                .authenticateToken(context.getProperty(PROP_TOKEN).evaluateAttributeExpressions().getValue().toCharArray())
+                .okHttpClient(new OkHttpClient.Builder()
+                        .connectTimeout(context.getProperty(PROP_CONNECT_TIMEOUT).asTimePeriod(TimeUnit.SECONDS), TimeUnit.SECONDS)
+                        .readTimeout(context.getProperty(PROP_READ_TIMEOUT).asTimePeriod(TimeUnit.SECONDS), TimeUnit.SECONDS)
+                        .followRedirects(true)
+                );
 
-        String url = urlProp.evaluateAttributeExpressions().getValue();
-        influxRef.set(InfluxDBClientFactory.create(url, token.getValue().toCharArray()));
-        InfluxDBClient influxDB = influxRef.get();
-
-        PropertyValue logLevelProperty = context.getProperty(PROP_LOG_LEVEL);
-        if (logLevelProperty.isSet()) {
-            influxDB.setLogLevel(LogLevel.valueOf(logLevelProperty.getValue().toUpperCase()));
+        if (context.getProperty(PROP_LOG_LEVEL).isSet()) {
+            options = options.logLevel(LogLevel.valueOf(context.getProperty(PROP_LOG_LEVEL).getValue().toUpperCase()));
         }
+
+        influxRef.set(InfluxDBClientFactory.create(options.build()));
     }
 
     @OnDisabled
     public void onDisabled() {
-        InfluxDBClient influxDB = influxRef.get();
+        InfluxDBClient influxDB = influxRef.getAndSet(null);
         if (influxDB != null) {
-            influxRef.get().close();
-            influxRef.set(null);
+            influxDB.close();
         }
     }
 
@@ -93,6 +114,6 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        return ImmutableList.of(PROP_URL, PROP_TOKEN, PROP_LOG_LEVEL);
+        return ImmutableList.of(PROP_URL, PROP_TOKEN, PROP_CONNECT_TIMEOUT, PROP_READ_TIMEOUT, PROP_LOG_LEVEL);
     }
 }

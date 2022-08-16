@@ -34,6 +34,7 @@ import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
+import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.components.*;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
@@ -156,18 +157,20 @@ public class PutInfluxDBv2 extends AbstractProcessor {
     private Map<String, PropertyValue> dynamicFieldValues;
 
     @OnScheduled
-    public void onScheduled(final ProcessContext context) {
+    public void onScheduled(final ProcessContext context) throws IOException {
+        Map<String, PropertyValue> result = context.getProperties().keySet().stream()
+                .filter(PropertyDescriptor::isDynamic)
+                .collect(Collectors.toMap(PropertyDescriptor::getName, context::getProperty));
+
+        if (result.isEmpty()) {
+            throw new IOException("At least one field key/value pair must be defined using dynamic properties");
+        }
+
+        dynamicFieldValues = result;
+
         influxClient = context.getProperty(PROP_INFLUX_DB_SERVICE)
                 .asControllerService(InfluxClientApi.class)
                 .getInfluxDb();
-
-        dynamicFieldValues = new HashMap<>();
-        for (final PropertyDescriptor descriptor : context.getProperties().keySet()) {
-            if (!descriptor.isDynamic()) {
-                continue;
-            }
-            dynamicFieldValues.put(descriptor.getName(), context.getProperty(descriptor));
-        }
 
         precision = WritePrecision.fromValue(context.getProperty(PROP_PRECISION).getValue());
     }
@@ -176,13 +179,6 @@ public class PutInfluxDBv2 extends AbstractProcessor {
     public void onTrigger(ProcessContext context, ProcessSession session) {
         List<FlowFile> flowFiles = session.get(context.getProperty(PROP_BATCH_SIZE).asInteger());
         if (flowFiles.isEmpty()) {
-            return;
-        }
-
-        if (dynamicFieldValues.isEmpty()) {
-            getLogger().error("At least one field key/value pair must be defined using dynamic properties");
-            session.transfer(flowFiles, REL_FAILURE);
-            context.yield();
             return;
         }
 
