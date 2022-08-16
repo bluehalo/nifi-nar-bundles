@@ -73,7 +73,7 @@ public class InfluxClient extends AbstractControllerService implements InfluxCli
             .displayName("Enable gzip Compression")
             .description("Enable gzip to speed up writes to InfluxDB and reduce network bandwidth")
             .allowableValues(Boolean.TRUE.toString(), Boolean.FALSE.toString())
-            .defaultValue(Boolean.TRUE.toString())
+            .defaultValue(Boolean.FALSE.toString())
             .build();
 
     private static final PropertyDescriptor PROP_LOG_LEVEL = new PropertyDescriptor.Builder()
