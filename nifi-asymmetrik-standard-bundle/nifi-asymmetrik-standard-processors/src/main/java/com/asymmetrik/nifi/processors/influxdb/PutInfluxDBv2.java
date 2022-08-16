@@ -175,11 +175,6 @@ public class PutInfluxDBv2 extends AbstractProcessor {
         precision = WritePrecision.fromValue(context.getProperty(PROP_PRECISION).getValue());
     }
 
-    @OnStopped
-    public void onStopped() {
-        influxClient.close();
-    }
-
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) {
         List<FlowFile> flowFiles = session.get(context.getProperty(PROP_BATCH_SIZE).asInteger());
