@@ -70,7 +70,7 @@ public class CalculateLatencyStatistics extends AbstractStatsProcessor {
 
     @Override
     protected void init(ProcessorInitializationContext context) {
-        properties = ImmutableList.of(ATTR_NAME, CORRELATION_ATTR, REPORTING_INTERVAL, BATCH_SIZE);
+        properties = ImmutableList.of(ATTR_NAME, CORRELATION_ATTR, REPORTING_INTERVAL, BATCH_SIZE, MAX_SIZE);
     }
 
     @OnScheduled

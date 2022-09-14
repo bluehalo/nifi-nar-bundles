@@ -56,7 +56,7 @@ public class CalculateBytesTransferred extends AbstractStatsProcessor {
 
     @Override
     protected void init(ProcessorInitializationContext context) {
-        properties = ImmutableList.of(CORRELATION_ATTR, REPORTING_INTERVAL, BATCH_SIZE);
+        properties = ImmutableList.of(CORRELATION_ATTR, REPORTING_INTERVAL, BATCH_SIZE, MAX_SIZE);
     }
 
     @OnScheduled

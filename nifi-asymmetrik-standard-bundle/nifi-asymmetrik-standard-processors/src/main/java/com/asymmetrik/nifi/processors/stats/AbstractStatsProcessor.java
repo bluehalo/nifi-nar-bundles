@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.components.PropertyValue;
+import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.flowfile.attributes.CoreAttributes;
 import org.apache.nifi.processor.AbstractProcessor;
@@ -46,7 +47,6 @@ public abstract class AbstractStatsProcessor extends AbstractProcessor {
     static final String DEFAULT_MOMENT_AGGREGATOR_KEY = "";
     static final String SECONDS = "Seconds";
     static final String BYTES = "Bytes";
-    static final String COUNT_PER_SECOND = "Count/Second";
     /**
      * Relationship Descriptors
      */
@@ -75,7 +75,7 @@ public abstract class AbstractStatsProcessor extends AbstractProcessor {
             .description("The attribute used to correlate events. If this property is set, event with " +
                     "the same value of the correlation attribute will be grouped prior to computing statistics.")
             .required(false)
-            .expressionLanguageSupported(false)
+            .expressionLanguageSupported(ExpressionLanguageScope.NONE)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
     static final PropertyDescriptor REPORTING_INTERVAL = new PropertyDescriptor.Builder()
@@ -87,6 +87,14 @@ public abstract class AbstractStatsProcessor extends AbstractProcessor {
             .defaultValue("1 m")
             .build();
 
+    static final PropertyDescriptor MAX_SIZE = new PropertyDescriptor.Builder()
+            .name("map_size_limit")
+            .displayName("Map Size Limit")
+            .description("The maximum number of keys to allow.")
+            .required(false)
+            .addValidator(StandardValidators.POSITIVE_INTEGER_VALIDATOR)
+            .build();
+
     private final Set<Relationship> relationships = ImmutableSet.of(REL_ORIGINAL, REL_STATS);
     protected List<PropertyDescriptor> properties;
     private volatile long reportingIntervalMillis;
@@ -95,6 +103,8 @@ public abstract class AbstractStatsProcessor extends AbstractProcessor {
 
     private Map<String, Optional<Map<String, String>>> latestStats;
     private int batchSize = 1;
+
+    private int maxSize = 1000;
     private String correlationKey;
 
     @Override
@@ -113,6 +123,11 @@ public abstract class AbstractStatsProcessor extends AbstractProcessor {
         reportingIntervalMillis = context.getProperty(REPORTING_INTERVAL).asTimePeriod(TimeUnit.MILLISECONDS);
         PropertyValue correlationAttrProp = context.getProperty(CORRELATION_ATTR);
         correlationKey = correlationAttrProp.isSet() ? correlationAttrProp.getValue() : DEFAULT_MOMENT_AGGREGATOR_KEY;
+
+        PropertyValue maxSizeProperty = context.getProperty(MAX_SIZE);
+        if (maxSizeProperty.isSet()) {
+            maxSize = maxSizeProperty.asInteger();
+        }
 
         momentsMap = new ConcurrentHashMap<>();
         latestStats = new ConcurrentHashMap<>();
@@ -178,7 +193,6 @@ public abstract class AbstractStatsProcessor extends AbstractProcessor {
         }
 
         for (Map.Entry<String, Optional<Map<String, String>>> statsMap : latestStats.entrySet()) {
-
             String statsMapKey = statsMap.getKey();
             Optional<Map<String, String>> result = buildStatAttributes(currentTimestamp, momentsMap.get(statsMapKey));
             if (result.isPresent()) {
@@ -195,6 +209,14 @@ public abstract class AbstractStatsProcessor extends AbstractProcessor {
         }
         lastReportTime = currentTimestamp;
         momentsMap.values().forEach(MomentAggregator::reset);
+        clearMaps();
+    }
+
+    private void clearMaps() {
+        if (momentsMap.size() == maxSize) {
+            momentsMap.clear();
+            latestStats.clear();
+        }
     }
 
     protected abstract void updateStats(FlowFile flowFile, MomentAggregator aggregator, long currentTimestamp);
